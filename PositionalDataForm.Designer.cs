@@ -1,6 +1,6 @@
 ﻿namespace Maneubo
 {
-  partial class ObservationDataForm
+  partial class PositionalDataForm
   {
     /// <summary>
     /// Required designer variable.
@@ -41,10 +41,10 @@
       System.Windows.Forms.Button btnCancel;
       System.Windows.Forms.GroupBox grpObservation;
       System.Windows.Forms.Label lblTime;
+      this.txtTime = new System.Windows.Forms.TextBox();
       this.grpObserved = new System.Windows.Forms.GroupBox();
       this.txtObservedDistance = new Maneubo.ChangeTrackingTextBox();
       this.txtObservedBearing = new Maneubo.ChangeTrackingTextBox();
-      this.txtTime = new System.Windows.Forms.TextBox();
       this.grpObserver = new System.Windows.Forms.GroupBox();
       this.txtObserverDistance = new Maneubo.ChangeTrackingTextBox();
       this.txtObserverBearing = new Maneubo.ChangeTrackingTextBox();
@@ -64,8 +64,8 @@
       btnCancel = new System.Windows.Forms.Button();
       grpObservation = new System.Windows.Forms.GroupBox();
       lblTime = new System.Windows.Forms.Label();
-      this.grpObserved.SuspendLayout();
       grpObservation.SuspendLayout();
+      this.grpObserved.SuspendLayout();
       this.grpObserver.SuspendLayout();
       this.grpPrevious.SuspendLayout();
       this.SuspendLayout();
@@ -119,36 +119,6 @@
       lblDegrees2.TabIndex = 5;
       lblDegrees2.Text = "degrees";
       lblDegrees2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
-      // grpObserved
-      // 
-      this.grpObserved.Controls.Add(this.txtObservedDistance);
-      this.grpObserved.Controls.Add(lblDistance2);
-      this.grpObserved.Controls.Add(lblDegrees2);
-      this.grpObserved.Controls.Add(this.txtObservedBearing);
-      this.grpObserved.Controls.Add(lblBearing2);
-      this.grpObserved.Location = new System.Drawing.Point(12, 139);
-      this.grpObserved.Name = "grpObserved";
-      this.grpObserved.Size = new System.Drawing.Size(196, 73);
-      this.grpObserved.TabIndex = 3;
-      this.grpObserved.TabStop = false;
-      this.grpObserved.Text = "Relative to Observed";
-      // 
-      // txtObservedDistance
-      // 
-      this.txtObservedDistance.Location = new System.Drawing.Point(63, 44);
-      this.txtObservedDistance.Name = "txtObservedDistance";
-      this.txtObservedDistance.Size = new System.Drawing.Size(71, 20);
-      this.txtObservedDistance.TabIndex = 7;
-      this.txtObservedDistance.Leave += new System.EventHandler(this.txtObserved_Leave);
-      // 
-      // txtObservedBearing
-      // 
-      this.txtObservedBearing.Location = new System.Drawing.Point(63, 18);
-      this.txtObservedBearing.Name = "txtObservedBearing";
-      this.txtObservedBearing.Size = new System.Drawing.Size(71, 20);
-      this.txtObservedBearing.TabIndex = 4;
-      this.txtObservedBearing.Leave += new System.EventHandler(this.txtObserved_Leave);
       // 
       // lblBearing2
       // 
@@ -240,6 +210,38 @@
       lblTime.Text = "Time";
       lblTime.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
+      // grpObserved
+      // 
+      this.grpObserved.Controls.Add(this.txtObservedDistance);
+      this.grpObserved.Controls.Add(lblDistance2);
+      this.grpObserved.Controls.Add(lblDegrees2);
+      this.grpObserved.Controls.Add(this.txtObservedBearing);
+      this.grpObserved.Controls.Add(lblBearing2);
+      this.grpObserved.Location = new System.Drawing.Point(12, 139);
+      this.grpObserved.Name = "grpObserved";
+      this.grpObserved.Size = new System.Drawing.Size(196, 73);
+      this.grpObserved.TabIndex = 3;
+      this.grpObserved.TabStop = false;
+      this.grpObserved.Text = "Relative to Observed";
+      // 
+      // txtObservedDistance
+      // 
+      this.txtObservedDistance.Location = new System.Drawing.Point(63, 44);
+      this.txtObservedDistance.Name = "txtObservedDistance";
+      this.txtObservedDistance.Size = new System.Drawing.Size(71, 20);
+      this.txtObservedDistance.TabIndex = 7;
+      this.txtObservedDistance.WasChanged = false;
+      this.txtObservedDistance.Leave += new System.EventHandler(this.txtObserved_Leave);
+      // 
+      // txtObservedBearing
+      // 
+      this.txtObservedBearing.Location = new System.Drawing.Point(63, 18);
+      this.txtObservedBearing.Name = "txtObservedBearing";
+      this.txtObservedBearing.Size = new System.Drawing.Size(71, 20);
+      this.txtObservedBearing.TabIndex = 4;
+      this.txtObservedBearing.WasChanged = false;
+      this.txtObservedBearing.Leave += new System.EventHandler(this.txtObserved_Leave);
+      // 
       // grpObserver
       // 
       this.grpObserver.Controls.Add(this.txtObserverDistance);
@@ -260,6 +262,7 @@
       this.txtObserverDistance.Name = "txtObserverDistance";
       this.txtObserverDistance.Size = new System.Drawing.Size(71, 20);
       this.txtObserverDistance.TabIndex = 7;
+      this.txtObserverDistance.WasChanged = false;
       this.txtObserverDistance.Leave += new System.EventHandler(this.txtObserver_Leave);
       // 
       // txtObserverBearing
@@ -268,6 +271,7 @@
       this.txtObserverBearing.Name = "txtObserverBearing";
       this.txtObserverBearing.Size = new System.Drawing.Size(71, 20);
       this.txtObserverBearing.TabIndex = 4;
+      this.txtObserverBearing.WasChanged = false;
       this.txtObserverBearing.Leave += new System.EventHandler(this.txtObserver_Leave);
       // 
       // grpPrevious
@@ -282,7 +286,7 @@
       this.grpPrevious.Size = new System.Drawing.Size(196, 73);
       this.grpPrevious.TabIndex = 4;
       this.grpPrevious.TabStop = false;
-      this.grpPrevious.Text = "Relative to Previous Observation";
+      this.grpPrevious.Text = "Relative to Previous Point";
       // 
       // txtPreviousDistance
       // 
@@ -290,6 +294,7 @@
       this.txtPreviousDistance.Name = "txtPreviousDistance";
       this.txtPreviousDistance.Size = new System.Drawing.Size(71, 20);
       this.txtPreviousDistance.TabIndex = 7;
+      this.txtPreviousDistance.WasChanged = false;
       this.txtPreviousDistance.Leave += new System.EventHandler(this.txtPrevious_Leave);
       // 
       // txtPreviousBearing
@@ -298,9 +303,10 @@
       this.txtPreviousBearing.Name = "txtPreviousBearing";
       this.txtPreviousBearing.Size = new System.Drawing.Size(71, 20);
       this.txtPreviousBearing.TabIndex = 4;
+      this.txtPreviousBearing.WasChanged = false;
       this.txtPreviousBearing.Leave += new System.EventHandler(this.txtPrevious_Leave);
       // 
-      // ObservationDataForm
+      // PositionalDataForm
       // 
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -316,14 +322,15 @@
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
       this.MaximizeBox = false;
       this.MinimizeBox = false;
-      this.Name = "ObservationDataForm";
+      this.Name = "PositionalDataForm";
+      this.ShowIcon = false;
       this.ShowInTaskbar = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Observation Data";
-      this.grpObserved.ResumeLayout(false);
-      this.grpObserved.PerformLayout();
       grpObservation.ResumeLayout(false);
       grpObservation.PerformLayout();
+      this.grpObserved.ResumeLayout(false);
+      this.grpObserved.PerformLayout();
       this.grpObserver.ResumeLayout(false);
       this.grpObserver.PerformLayout();
       this.grpPrevious.ResumeLayout(false);

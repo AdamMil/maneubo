@@ -21,7 +21,6 @@ namespace Maneubo
       this.unitSystem = unitSystem;
 
       txtName.Text = shape.Name;
-      txtName.Enabled = false;
       lblParent.Text = shape.Parent == null ? "<none>" : string.IsNullOrEmpty(shape.Parent.Name) ? "<unnamed shape>" : shape.Parent.Name;
 
       UnitShape unit = shape as UnitShape;

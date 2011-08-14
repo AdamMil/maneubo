@@ -7,59 +7,66 @@ using System.ComponentModel;
 
 namespace Maneubo
 {
-  partial class ObservationDataForm : DataForm
+  partial class PositionalDataForm : DataForm
   {
-    public ObservationDataForm()
+    public PositionalDataForm()
     {
       InitializeComponent();
     }
 
-    public ObservationDataForm(Observation observation, UnitSystem unitSystem) : this()
+    public PositionalDataForm(PositionalDataShape posData, UnitSystem unitSystem) : this()
     {
       this.unitSystem = unitSystem;
 
       txtTime.Text = string.Format("{0}:{1:d2}:{2:d2}",
-                                   (int)observation.Time.TotalHours, observation.Time.Minutes, observation.Time.Seconds);
+                                   (int)posData.Time.TotalHours, posData.Time.Minutes, posData.Time.Seconds);
       txtTime.Focus();
       txtTime.SelectAll();
 
-      Observation previousObservation = null;
-      for(int index = observation.Parent.Children.IndexOf(observation)-1; index >= 0; index--)
+      PositionalDataShape previousPosition = null;
+      UnitShape observer = posData is Observation ? ((Observation)posData).Observer : null;
+      for(int index = posData.Parent.Children.IndexOf(posData)-1; index >= 0; index--)
       {
-        previousObservation = observation.Parent.Children[index] as Observation;
-        if(previousObservation != null && previousObservation.Observer == observation.Observer &&
-           previousObservation.GetType() == observation.GetType())
+        previousPosition = posData.Parent.Children[index] as PositionalDataShape;
+        if(previousPosition != null && previousPosition.GetType() == posData.GetType() &&
+           (!(previousPosition is Observation) || ((Observation)previousPosition).Observer == observer))
         {
           break;
         }
         else
         {
-          previousObservation = null;
+          previousPosition = null;
         }
       }
-      if(previousObservation != null) previousTime = previousObservation.Time;
+      if(previousPosition != null) previousTime = previousPosition.Time;
 
-      if(observation is PointObservation)
+      if(posData is BearingObservation)
       {
-        this.observationPoint = observation.Position;
-        FillRelativeTo((UnitShape)observation.Parent, txtObservedBearing, txtObservedDistance, out observedPoint);
-        FillRelativeTo(observation.Observer, txtObserverBearing, txtObserverDistance, out observerPoint);
-
-        if(previousObservation == null) grpPrevious.Enabled = false;
-        else FillRelativeTo(previousObservation, txtPreviousBearing, txtPreviousDistance, out previousPoint);
-      }
-      else if(observation is BearingObservation)
-      {
-        double bearing = ((BearingObservation)observation).Bearing;
+        double bearing = ((BearingObservation)posData).Bearing;
         grpPrevious.Enabled = false;
         grpObserved.Enabled = false;
         txtObserverDistance.Enabled = false;
         txtObserverBearing.Text = (bearing * MathConst.RadiansToDegrees).ToString("0.##");
         txtObserverBearing.Tag  = bearing;
+        txtObservedBearing.WasChanged = false; // ignore programmatic change
       }
       else
       {
-        throw new NotImplementedException();
+        this.posDataPoint = posData.Position;
+        FillRelativeTo((UnitShape)posData.Parent, txtObservedBearing, txtObservedDistance, out observedPoint);
+
+        if(posData is PointObservation)
+        {
+          FillRelativeTo(observer, txtObserverBearing, txtObserverDistance, out observerPoint);
+        }
+        else
+        {
+          grpObserver.Enabled = false;
+          grpObserved.Text = "Relative to Unit";
+        }
+
+        if(previousPosition == null) grpPrevious.Enabled = false;
+        else FillRelativeTo(previousPosition, txtPreviousBearing, txtPreviousDistance, out previousPoint);
       }
     }
 
@@ -70,7 +77,7 @@ namespace Maneubo
 
     public Point2 Position
     {
-      get { return observationPoint.Value; }
+      get { return posDataPoint.Value; }
     }
 
     public TimeSpan Time
@@ -85,10 +92,10 @@ namespace Maneubo
 
     void FillRelativeTo(ChangeTrackingTextBox txtBearing, ChangeTrackingTextBox txtDistance, Point2 relativePoint)
     {
-      double angle = ManeuveringBoard.AngleBetween(relativePoint, observationPoint.Value);
+      double angle = ManeuveringBoard.AngleBetween(relativePoint, posDataPoint.Value);
       txtBearing.Text = (angle * MathConst.RadiansToDegrees).ToString("0.##");
       txtBearing.Tag  = angle;
-      double distance = relativePoint.DistanceTo(observationPoint.Value);
+      double distance = relativePoint.DistanceTo(posDataPoint.Value);
       txtDistance.Text = ManeuveringBoard.GetDistanceString(distance, unitSystem);
       txtDistance.Tag  = distance;
       txtBearing.WasChanged = txtDistance.WasChanged = false;
@@ -139,7 +146,7 @@ namespace Maneubo
       if(Validate(txtBearing, txtDistance))
       {
         double bearing = (double)txtBearing.Tag, distance = (double)txtDistance.Tag;
-        observationPoint = fromPoint + new Vector2(0, distance).Rotated(-bearing);
+        posDataPoint = fromPoint + new Vector2(0, distance).Rotated(-bearing);
 
         if(otherPoint1.HasValue) FillRelativeTo(txtOtherBearing1, txtOtherDistance1, otherPoint1.Value);
         if(otherPoint2.HasValue) FillRelativeTo(txtOtherBearing2, txtOtherDistance2, otherPoint2.Value);
@@ -219,7 +226,7 @@ namespace Maneubo
 
     void txtObserver_Leave(object sender, EventArgs e)
     {
-      if((txtObserverBearing.WasChanged || txtObserverDistance.WasChanged) && observationPoint.HasValue)
+      if((txtObserverBearing.WasChanged || txtObserverDistance.WasChanged) && posDataPoint.HasValue)
       {
         UpdateObservationPoint(txtObserverBearing, txtObserverDistance, observerPoint,
                                 txtObservedBearing, txtObservedDistance, observedPoint,
@@ -242,7 +249,7 @@ namespace Maneubo
     readonly TimeSpan? previousTime;
     readonly UnitSystem unitSystem;
 
-    Point2? observationPoint;
+    Point2? posDataPoint;
 
     static readonly Regex timeRe = new Regex(@"^\s*(?<rel>\+)?\s*(?:(?<hours>\d+):)?(?<minutes>\d+)(?::(?<seconds>\d+))?\s*$",
                                              RegexOptions.IgnoreCase);

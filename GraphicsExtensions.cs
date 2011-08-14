@@ -1,6 +1,6 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using AdamMil.Mathematics.Geometry;
-using System.Drawing.Drawing2D;
 
 namespace Maneubo
 {
@@ -38,6 +38,16 @@ namespace Maneubo
     {
       float diameter = radius*2;
       graphics.DrawEllipse(pen, center.X-radius, center.Y-radius, diameter, diameter);
+    }
+
+    public static void DrawHLine(this Graphics graphics, Pen pen, int x, int y, int x2)
+    {
+      graphics.DrawLine(pen, x, y, x2, y);
+    }
+
+    public static void DrawVLine(this Graphics graphics, Pen pen, int x, int y, int y2)
+    {
+      graphics.DrawLine(pen, x, y, x, y2);
     }
 
     public static void DrawRectangle(this Graphics graphics, Pen pen, RectangleF rectangle)

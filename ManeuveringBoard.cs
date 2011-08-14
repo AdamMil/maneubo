@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using AdamMil.Collections;
 using AdamMil.Mathematics.Geometry;
+using AdamMil.Mathematics.LinearEquations;
 using AdamMil.Utilities;
 using BoardPoint = AdamMil.Mathematics.Geometry.Point2;
 using BoardRect  = AdamMil.Mathematics.Geometry.Rectangle;
@@ -275,6 +276,11 @@ namespace Maneubo
     /// <summary>Gets or sets the unit's absolute position.</summary>
     public override BoardPoint Position { get; set; }
 
+    public Vector2 Velocity
+    {
+      get { return new Vector2(0, Speed).Rotated(-Direction); }
+    }
+
     /// <summary>Gets or sets the unit's speed, in meters per second. This speed may be relative or true, depending on the value of
     /// <see cref="IsmotionRelative"/>.
     /// </summary>
@@ -285,6 +291,58 @@ namespace Maneubo
       {
         if(value < 0) throw new ArgumentOutOfRangeException();
         _speed = value;
+      }
+    }
+
+    public TMASolution TMASolution { get; set; }
+
+    public double GetEffectiveSpeed()
+    {
+      return GetEffectiveSpeed(new TimeSpan());
+    }
+
+    public double GetEffectiveSpeed(TimeSpan time)
+    {
+      return GetEffectiveVelocity(time).Length;
+    }
+
+    public Vector2 GetEffectiveVelocity()
+    {
+      return GetEffectiveVelocity(new TimeSpan());
+    }
+
+    public Vector2 GetEffectiveVelocity(TimeSpan time)
+    {
+      Waypoint applicableWaypoint, previousWaypoint;
+      applicableWaypoint = GetApplicableWaypoint(time, out previousWaypoint);
+
+      if(applicableWaypoint == null)
+      {
+        return Velocity;
+      }
+      else
+      {
+        double previousTime = previousWaypoint == null ? 0 : previousWaypoint.Time.TotalSeconds;
+        BoardPoint previousPosition = previousWaypoint == null ? Position : previousWaypoint.Position;
+        return (applicableWaypoint.Position - previousPosition) / (applicableWaypoint.Time.TotalSeconds - previousTime);
+      }
+    }
+
+    public BoardPoint GetPositionAt(TimeSpan time)
+    {
+      Waypoint applicableWaypoint, previousWaypoint;
+      applicableWaypoint = GetApplicableWaypoint(time, out previousWaypoint);
+
+      if(applicableWaypoint == null)
+      {
+        return Position + Velocity*time.TotalSeconds;
+      }
+      else
+      {
+        double previousTime = previousWaypoint == null ? 0 : previousWaypoint.Time.TotalSeconds;
+        BoardPoint previousPosition = previousWaypoint == null ? Position : previousWaypoint.Position;
+        return previousPosition + (applicableWaypoint.Position - previousPosition) *
+               ((time.TotalSeconds - previousTime) / (applicableWaypoint.Time.TotalSeconds - previousTime));
       }
     }
 
@@ -313,16 +371,34 @@ namespace Maneubo
     {
       float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
 
-      // if the unit has a speed, draw the velocity vector. the vector will be drawn with a length equal to the distance traveled in
-      // six minutes
-      if(Speed > 0)
+      // don't draw the velocity vector if we're using the TMA tool for this shape, since they often coincide
+      if(Board.SelectedTool != Board.TMATool || Board.SelectedShape != this)
       {
-        Vector2 motion = new Vector2(0, -Speed*scale*360).Rotated(Direction);
-        graphics.DrawArrow(Pen, x, y, x+(float)motion.X, y+(float)motion.Y);
+        // if the unit has a speed, draw the velocity vector. the vector will be drawn with a length equal to the distance traveled in
+        // six minutes
+        Vector2 velocity = GetEffectiveVelocity();
+        if(velocity.LengthSqr > 0)
+        {
+          velocity = new Vector2(velocity.X, -velocity.Y) * scale * ManeuveringBoard.VectorTime;
+          graphics.DrawArrow(Pen, x, y, x+(float)velocity.X, y+(float)velocity.Y);
+        }
       }
 
       graphics.DrawRectangle(Pen, x-6, y-6, 12, 12);
       RenderName(graphics, x, y+8);
+    }
+
+    Waypoint GetApplicableWaypoint(TimeSpan time, out Waypoint previousWaypoint)
+    {
+      Waypoint applicableWaypoint = null, previous = null;
+      foreach(Waypoint waypoint in Children.OfType<Waypoint>())
+      {
+        previous           = applicableWaypoint;
+        applicableWaypoint = waypoint;
+        if(waypoint.Time > time) break;
+      }
+      previousWaypoint = previous;
+      return applicableWaypoint;
     }
 
     double _direction, _speed;
@@ -333,23 +409,17 @@ namespace Maneubo
   // 1. there should be a way to have observations from a towed array connected to a unit
   // 2. it should be possible for the UnitShape to act as a first observation, so it should have a Time field
 
-  #region ObservationType
-  enum ObservationType
+  #region PositionalDataType
+  enum PositionalDataType
   {
     Point, BearingLine, Waypoint
   }
   #endregion
 
-  #region Observation
-  abstract class Observation : Shape
+  #region PositionalDataShape
+  abstract class PositionalDataShape : Shape
   {
-    public UnitShape Observer { get; set; }
     public TimeSpan Time { get; set; }
-
-    protected new Pen Pen
-    {
-      get { return this == Board.SelectedShape ? Board.selectedObservationPen : Board.observationPen; }
-    }
 
     protected void RenderTime(Graphics graphics, PointF point)
     {
@@ -358,7 +428,21 @@ namespace Maneubo
 
     protected void RenderTime(Graphics graphics, float x, float y)
     {
-      CenterText(graphics, x, y, string.Format("{0}:{1:d2}:{2:d2}", (int)Time.TotalHours, Time.Minutes, Time.Seconds));
+      string timeStr = ((int)Time.TotalHours).ToString() + ":" + Time.Minutes.ToString("d2");
+      if(Time.Seconds != 0) timeStr += ":" + Time.Seconds.ToString("d2");
+      CenterText(graphics, x, y, timeStr);
+    }
+  }
+  #endregion
+
+  #region Observation
+  abstract class Observation : PositionalDataShape
+  {
+    public UnitShape Observer { get; set; }
+
+    protected new Pen Pen
+    {
+      get { return this == Board.SelectedShape ? Board.selectedObservationPen : Board.observationPen; }
     }
   }
   #endregion
@@ -370,14 +454,25 @@ namespace Maneubo
 
     public override BoardPoint Position
     {
-      get { return Observer.Position + new Vector2(0, 1).Rotated(-Bearing); }
-      set { Bearing = ManeuveringBoard.AngleBetween(Observer.Position, value); }
+      get { return GetEffectiveObserverPosition() + new Vector2(0, 1).Rotated(-Bearing); }
+      set { Bearing = ManeuveringBoard.AngleBetween(GetEffectiveObserverPosition(), value); }
+    }
+
+    public BoardPoint GetEffectiveObserverPosition()
+    {
+      return Observer.GetPositionAt(Time);
+    }
+
+    public Line2 GetBearingLine()
+    {
+      return new Line2(GetEffectiveObserverPosition(), new Vector2(0, 1).Rotated(-Bearing));
     }
 
     public override double GetSelectionDistance(SysPoint point)
     {
       BoardPoint boardPoint = Board.GetBoardPoint(point);
-      Line2 bearingLine = new Line2(Observer.Position, new Vector2(0, 1).Rotated(-Bearing));
+      BoardPoint observerPosition = GetEffectiveObserverPosition();
+      Line2 bearingLine = new Line2(observerPosition, new Vector2(0, 1).Rotated(-Bearing));
       double distance = Math.Abs(bearingLine.DistanceTo(boardPoint)) * Board.ZoomFactor;
 
       // the distance measurement considers the entire infinite line, but we only want to consider the ray starting from the observer, so
@@ -395,7 +490,8 @@ namespace Maneubo
 
     public override void Render(Graphics graphics)
     {
-      Point2 observerPosition = new BoardPoint(Observer.Position.X*Board.ZoomFactor, -Observer.Position.Y*Board.ZoomFactor);
+      BoardPoint observerPosition = GetEffectiveObserverPosition();
+      observerPosition = new BoardPoint(observerPosition.X*Board.ZoomFactor, -observerPosition.Y*Board.ZoomFactor);
       Vector2 screenVector = new Vector2(0, -1).Rotated(Bearing);
       Line2 bearingLine = new Line2(observerPosition, screenVector);
 
@@ -424,6 +520,7 @@ namespace Maneubo
       if(endPoint.IsValid)
       {
         graphics.DrawLine(Pen, observerPosition.ToPointF(), endPoint.ToPointF());
+        graphics.DrawCircle(Pen, observerPosition.ToPointF(), 3);
         RenderTime(graphics, (observerPosition + (endPoint - observerPosition)*0.5).ToPointF());
       }
     }
@@ -458,6 +555,35 @@ namespace Maneubo
   }
   #endregion
 
+  #region Waypoint
+  sealed class Waypoint : PositionalDataShape
+  {
+    public override BoardPoint Position { get; set; }
+
+    public override double GetSelectionDistance(SysPoint point)
+    {
+      double distance = Board.GetBoardPoint(point).DistanceTo(Position) * Board.ZoomFactor;
+      return distance <= 12 ? distance : double.NaN;
+    }
+
+    public override void Render(Graphics graphics)
+    {
+      float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
+
+      int index = Parent.Children.IndexOf(this) - 1;
+      Waypoint previousWaypoint = index >= 0 ? Parent.Children[index] as Waypoint : null;
+      Shape previousShape = previousWaypoint != null ? previousWaypoint : Parent;
+      float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
+      graphics.DrawArrow(Pen, prevX, prevY, x, y);
+
+      graphics.DrawRectangle(Pen, x-6, y-6, 12, 12);
+      graphics.DrawLine(Pen, x, y-6, x, y+6);
+      graphics.DrawLine(Pen, x-6, y, x+6, y);
+      RenderTime(graphics, x, y+8);
+    }
+  }
+  #endregion
+
   #region LengthUnit
   enum LengthUnit
   {
@@ -479,6 +605,15 @@ namespace Maneubo
   }
   #endregion
 
+  #region TMASolution
+  sealed class TMASolution
+  {
+    public BoardPoint Position;
+    public Vector2 Velocity;
+    public bool LockCourse, LockSpeed;
+  }
+  #endregion
+
   #region ManeuveringBoard
   sealed class ManeuveringBoard : MouseCanvas
   {
@@ -487,6 +622,8 @@ namespace Maneubo
       AddObservationTool = new AddObservationToolClass(this);
       AddUnitTool = new AddUnitToolClass(this);
       PointerTool = new PointerToolClass(this);
+      SetupBackgroundTool = new SetupBackgroundToolClass(this);
+      TMATool = new TMAToolClass(this);
 
       BackColor = Color.FromArgb(0xad, 0xd8, 0xe6);
       SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.FixedHeight | ControlStyles.FixedWidth | ControlStyles.Opaque |
@@ -504,6 +641,8 @@ namespace Maneubo
       selectedPen.Width = 2;
       referencePen = (Pen)Pens.Red.Clone();
       referencePen.Width = 2;
+      tmaPen = (Pen)Pens.DarkGreen.Clone();
+      tmaPen.Width = 2;
       observationPen = (Pen)Pens.Gray.Clone();
       selectedObservationPen = (Pen)selectedPen.Clone();
 
@@ -580,6 +719,7 @@ namespace Maneubo
       public virtual void MouseDrag(MouseDragEventArgs e) { }
       public virtual void MouseDragEnd(MouseDragEventArgs e) { }
       public virtual bool MouseWheel(MouseEventArgs e) { return false; }
+      public virtual void OnSelectionChanged(Shape previousSelection) { }
       public virtual void RenderDecorations(Graphics graphics) { }
 
       protected ManeuveringBoard Board { get; private set; }
@@ -591,61 +731,79 @@ namespace Maneubo
     {
       public AddObservationToolClass(ManeuveringBoard board) : base(board)
       {
-        Type = ObservationType.Point;
+        Type = PositionalDataType.Point;
       }
 
-      public ObservationType Type { get; set; }
-
-      public override void Activate()
+      public PositionalDataType Type
       {
-        Board.Invalidate();
-      }
-
-      public override void Deactivate()
-      {
-        Board.Invalidate();
+        get { return _type; }
+        set
+        {
+          if(value != Type)
+          {
+            _type = value;
+            Board.Invalidate();
+          }
+        }
       }
 
       public override bool MouseClick(MouseEventArgs e)
       {
         if(e.Button == MouseButtons.Left)
         {
-          Observation observation;
-          if(Type == ObservationType.Point)
+          // clicking on a unit selects it. this way, the user doesn't have to change tools or right-click and dismiss the menu to change
+          // the target for which we'll add an observation
+          UnitShape unit = Board.GetShapeUnderCursor(e.Location) as UnitShape;
+          if(unit != null && Board.SelectedShape != unit)
           {
-            observation = new PointObservation() { Observer = Board.ReferenceShape, Position = Board.GetBoardPoint(e.Location) };
-          }
-          else if(Type == ObservationType.BearingLine)
-          {
-            double bearing = ManeuveringBoard.AngleBetween(Board.ReferenceShape.Position, Board.GetBoardPoint(e.Location));
-            observation = new BearingObservation() { Observer = Board.ReferenceShape, Bearing = bearing };
-          }
-          else
-          {
-            throw new NotImplementedException();
+            Board.SelectedShape = unit;
+            return true;
           }
 
-          // find where to insert the new observation. we want to put it after the selected item to start with, so the lines connecting
-          // the observations is most likely to be correct, but anyway EditObservation() will sort them correctly so we don't have to be
-          // too careful about order (e.g. we don't have to order by type)
-          UnitShape observed = Board.SelectedShape as UnitShape;
-          int index;
-          if(observed != null) // insert it as the first observation if the unit is selected
+          unit = GetSelectedUnit();
+          if(unit != null && (Type == PositionalDataType.Waypoint || unit != Board.ReferenceShape))
           {
-            Observation firstObservation =
-                observed.Children.OfType<Observation>().Where(o => o.Observer == Board.ReferenceShape).FirstOrDefault();
-            index = firstObservation != null ? observed.Children.IndexOf(firstObservation) : observed.Children.Count;
-          }
-          else // otherwise, insert it after the selected observation
-          {
-            observed = (UnitShape)Board.SelectedShape.Parent;
-            index = observed.Children.IndexOf(Board.SelectedShape) + 1;
-          }
+            PositionalDataShape posData;
+            if(Type == PositionalDataType.Waypoint)
+            {
+              posData = new Waypoint() { Position = Board.GetBoardPoint(e.Location) };
+            }
+            else if(Type == PositionalDataType.Point)
+            {
+              posData = new PointObservation() { Observer = Board.ReferenceShape, Position = Board.GetBoardPoint(e.Location) };
+            }
+            else if(Type == PositionalDataType.BearingLine)
+            {
+              double bearing = ManeuveringBoard.AngleBetween(Board.ReferenceShape.Position, Board.GetBoardPoint(e.Location));
+              posData = new BearingObservation() { Observer = Board.ReferenceShape, Bearing = bearing };
+            }
+            else
+            {
+              throw new NotImplementedException();
+            }
 
-          observed.Children.Insert(index, observation);
-          if(Board.EditObservation(observation)) Board.SelectedShape = observation;
-          else Board.DeleteShape(observation, false);
-          return true;
+            // find where to insert the new observation. we want to put it after the selected item to start with, so the lines connecting
+            // the observations is most likely to be correct, but anyway EditObservation() will sort them correctly so we don't have to be
+            // too careful about order (e.g. we don't have to order by type)
+            int index;
+            if(Board.SelectedShape is UnitShape) // insert it as the first observation if the unit is selected
+            {
+              PositionalDataShape firstObservation =
+                  unit.Children.OfType<PositionalDataShape>().Where(
+                    s => !(s is Observation) || ((Observation)s).Observer == Board.ReferenceShape).FirstOrDefault();
+              index = firstObservation != null ? unit.Children.IndexOf(firstObservation) : unit.Children.Count;
+            }
+            else // otherwise, insert it after the selected observation
+            {
+              unit = (UnitShape)Board.SelectedShape.Parent;
+              index = unit.Children.IndexOf(Board.SelectedShape) + 1;
+            }
+
+            unit.Children.Insert(index, posData);
+            if(Board.EditPositionalData(posData)) Board.SelectedShape = posData;
+            else Board.DeleteShape(posData, false);
+            return true;
+          }
         }
 
         return false;
@@ -653,20 +811,19 @@ namespace Maneubo
 
       public override void MouseMove(MouseEventArgs e)
       {
-        InvalidateIfReference();
-        if(Board.ReferenceShape != null)
-        {
-          BoardPoint cursor = Board.GetBoardPoint(Board.PointToClient(Cursor.Position));
-          double angle = AngleBetween(Board.ReferenceShape.Position, cursor) * MathConst.RadiansToDegrees;
-          Board.StatusText = angle.ToString("f2") + "°, " + Board.GetDistanceString((cursor-Board.ReferenceShape.Position).Length);
-        }
+        InvalidateIfApplicable();
+      }
+
+      public override void OnSelectionChanged(Shape previousSelection)
+      {
+        InvalidateIfApplicable();
       }
 
       public override void RenderDecorations(Graphics graphics)
       {
-        if(Board.ReferenceShape != null)
+        if(IsApplicable)
         {
-          // TODO: use a preallocated pen
+          // TODO: use a preallocated pen?
           using(Pen pen = new Pen(Color.FromArgb(96, Color.Black), 1))
           {
             SysPoint clientPoint = Board.PointToClient(Cursor.Position);
@@ -677,10 +834,28 @@ namespace Maneubo
         }
       }
 
-      void InvalidateIfReference()
+      bool IsApplicable
       {
-        if(Board.ReferenceShape != null) Board.Invalidate();
+        get
+        {
+          return Board.ReferenceShape != null &&
+                 (Type == PositionalDataType.Waypoint || Board.ReferenceShape != Board.SelectedShape && GetSelectedUnit() != null);
+        }
       }
+
+      UnitShape GetSelectedUnit()
+      {
+        UnitShape unit = Board.SelectedShape as UnitShape;
+        if(unit == null && Board.SelectedShape != null) unit = Board.SelectedShape.Parent as UnitShape;
+        return unit;
+      }
+
+      void InvalidateIfApplicable()
+      {
+        if(IsApplicable) Board.Invalidate();
+      }
+
+      PositionalDataType _type;
     }
     #endregion
 
@@ -689,20 +864,19 @@ namespace Maneubo
     {
       public AddUnitToolClass(ManeuveringBoard board) : base(board) { }
 
-      public override void Activate()
-      {
-        InvalidateIfReference();
-      }
-
-      public override void Deactivate()
-      {
-        InvalidateIfReference();
-      }
-
       public override bool MouseClick(MouseEventArgs e)
       {
         if(e.Button == MouseButtons.Left)
         {
+          // clicking on a unit selects it. this way, the user doesn't have to change tools or right-click and dismiss the menu to change
+          // selection
+          UnitShape unit = Board.GetShapeUnderCursor(e.Location) as UnitShape;
+          if(unit != null && Board.SelectedShape != unit)
+          {
+            Board.SelectedShape = unit;
+            return true;
+          }
+
           HashSet<string> names = new HashSet<string>();
           foreach(Shape shape in Board.EnumerateShapes())
           {
@@ -712,7 +886,7 @@ namespace Maneubo
           string name = "M1";
           for(int suffix=2; names.Contains(name); suffix++) name = "M" + suffix.ToInvariantString();
 
-          UnitShape unit = new UnitShape() { Name = name, Position = Board.GetBoardPoint(e.Location) };
+          unit = new UnitShape() { Name = name, Position = Board.GetBoardPoint(e.Location) };
           Board.RootShapes.Add(unit);
           Board.SelectedShape = unit;
           return true;
@@ -724,12 +898,6 @@ namespace Maneubo
       public override void MouseMove(MouseEventArgs e)
       {
         InvalidateIfReference();
-        if(Board.ReferenceShape != null)
-        {
-          BoardPoint cursor = Board.GetBoardPoint(Board.PointToClient(Cursor.Position));
-          double angle = AngleBetween(Board.ReferenceShape.Position, cursor) * MathConst.RadiansToDegrees;
-          Board.StatusText = angle.ToString("f2") + "°, " + Board.GetDistanceString((cursor-Board.ReferenceShape.Position).Length);
-        }
       }
 
       public override void RenderDecorations(Graphics graphics)
@@ -760,7 +928,473 @@ namespace Maneubo
     }
     #endregion
 
-    public event EventHandler SelectionChanged, StatusTextChanged, ToolChanged;
+    #region SetupBackgroundToolClass
+    public sealed class SetupBackgroundToolClass : Tool
+    {
+      public SetupBackgroundToolClass(ManeuveringBoard board) : base(board) { }
+
+      public override bool MouseDragStart(MouseEventArgs e)
+      {
+        base.MouseDragStart(e);
+
+        // left drag scales the background image by letting the user draw a scale line and asking them how long it is in real units.
+        // right drag moves the background image. middle drag scrolls the display
+        dragStart = dragPoint = Board.GetBoardPoint(e.Location);
+        if(e.Button == MouseButtons.Right) dragStart = Board.BackgroundImageCenter;
+        else if(e.Button == MouseButtons.Middle) dragStart = Board.Center;
+        else if(e.Button != MouseButtons.Left) return false;
+        dragButton = e.Button;
+        return true;
+      }
+
+      public override void MouseDrag(MouseDragEventArgs e)
+      {
+        if(dragButton == MouseButtons.Left)
+        {
+          dragPoint = Board.GetBoardPoint(e.Location);
+          Board.Invalidate(); // repaint the scale line
+        }
+        else if(dragButton == MouseButtons.Right)
+        {
+          Board.BackgroundImageCenter = dragStart + (Board.GetBoardPoint(e.Location) - dragPoint);
+        }
+        else if(dragButton == MouseButtons.Middle)
+        {
+          Board.Center = dragStart; // reset the start position so we can correctly calculate the movement
+          Board.Center = dragStart - (Board.GetBoardPoint(e.Location) - dragPoint);
+        }
+      }
+
+      public override void MouseDragEnd(MouseDragEventArgs e)
+      {
+        if(dragButton == MouseButtons.Left)
+        {
+          double distance = dragStart.DistanceTo(dragPoint);
+          BackgroundScaleForm form = new BackgroundScaleForm(distance*Board.ZoomFactor, distance, Board.UnitSystem);
+          if(form.ShowDialog() == DialogResult.OK) Board.BackgroundImageScale *= form.Distance / distance;
+          Board.Invalidate();
+        }
+
+        dragButton = MouseButtons.None;
+      }
+
+      public override void RenderDecorations(Graphics graphics)
+      {
+        if(dragButton == MouseButtons.Left && dragPoint != dragStart)
+        {
+          graphics.DrawLine(Pens.Red, Board.GetRenderPoint(dragStart), Board.GetRenderPoint(dragPoint));
+        }
+      }
+
+      BoardPoint dragStart, dragPoint;
+      MouseButtons dragButton;
+    }
+    #endregion
+
+    #region TMAToolClass
+    public sealed class TMAToolClass : Tool
+    {
+      public TMAToolClass(ManeuveringBoard board) : base(board) { }
+
+      public override void Activate()
+      {
+        OnSelectionChanged(null);
+      }
+
+      public override void Deactivate()
+      {
+        UpdateTMASolution(GetSelectedUnit());
+        HideForm();
+      }
+
+      public override void MouseDrag(MouseDragEventArgs e)
+      {
+        if(dragMode != DragMode.None)
+        {
+          if(dragMode == DragMode.Start)
+          {
+            position = Board.GetBoardPoint(e.Location);
+            velocity = (dragStart - position) * (maxTime == 0 ? 1.0/VectorTime : 1.0/maxTime);
+          }
+          else if(dragMode == DragMode.Middle)
+          {
+            position = dragStart + (Board.GetBoardPoint(e.Location) - dragPoint);
+          }
+          else if(dragMode == DragMode.End)
+          {
+            velocity = (Board.GetBoardPoint(e.Location) - position) * (maxTime == 0 ? 1.0/VectorTime : 1.0/maxTime);
+          }
+
+          if(form.LockCourse || form.LockSpeed)
+          {
+            if(form.LockCourse && velocity != Vector2.Zero) velocity = new Vector2(0, velocity.Length).Rotated(-form.Course);
+            if(form.LockSpeed) velocity = new Vector2(form.Speed, 0).Rotated(velocity == Vector2.Zero ? 0 : velocity.Angle);
+            if(dragMode == DragMode.Start) position = dragStart - velocity * (maxTime == 0 ? VectorTime : maxTime);
+          }
+
+          OnArrowMoved();
+        }
+      }
+
+      public override void MouseDragEnd(MouseDragEventArgs e)
+      {
+        dragMode = DragMode.None;
+      }
+
+      public override bool MouseDragStart(MouseEventArgs e)
+      {
+        if(e.Button == MouseButtons.Left) // left drag on the line moves it
+        {
+          dragPoint = Board.GetBoardPoint(e.Location);
+          BoardPoint end = position + velocity * (maxTime == 0 ? VectorTime : maxTime);
+          double distanceFromStart = dragPoint.DistanceTo(position) * Board.ZoomFactor;
+          double distanceFromEnd = dragPoint.DistanceTo(end + velocity.Normalized(3)) * Board.ZoomFactor;
+          if(distanceFromStart <= 6 || distanceFromEnd <= 9)
+          {
+            dragMode  = distanceFromStart < distanceFromEnd ? DragMode.Start : DragMode.End;
+            dragStart = dragMode == DragMode.Start ? end : position;
+            return true;
+          }
+
+          Line2 tmaLine = new Line2(position, end);
+          double distance = dragPoint.DistanceTo(tmaLine.ClosestPointOnSegment(dragPoint)) * Board.ZoomFactor;
+          if(distance <= 4)
+          {
+            dragMode  = DragMode.Middle;
+            dragStart = position;
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      public override void RenderDecorations(Graphics graphics)
+      {
+        UnitShape unit = GetSelectedUnit();
+        if(unit != null)
+        {
+          PointF start = Board.GetRenderPoint(position);
+          Vector2 crossTick = velocity.CrossVector.Normalized(6);
+
+          List<float> errors = new List<float>(12);
+
+          foreach(BearingObservation bearing in unit.Children.OfType<BearingObservation>().OrderBy(o => o.Time))
+          {
+            BoardPoint unitPoint = position + velocity*bearing.Time.TotalSeconds;
+            PointF point = Board.GetRenderPoint(unitPoint);
+            graphics.DrawLine(Board.tmaPen, point.X-(float)crossTick.X, point.Y+(float)crossTick.Y,
+                              point.X+(float)crossTick.X, point.Y-(float)crossTick.Y);
+            errors.Add((float)bearing.GetBearingLine().DistanceTo(unitPoint));
+          }
+
+          PointF end = Board.GetRenderPoint(position + velocity * (maxTime == 0 ? VectorTime : maxTime));
+          graphics.DrawLine(Board.tmaPen, start, end);
+
+          Vector2 capVector = (velocity == Vector2.Zero ? new Vector2(1, 0) : velocity).Normalized(6);
+          PointF capEnd = new PointF(end.X + (float)capVector.X, end.Y - (float)capVector.Y);
+          graphics.DrawArrow(Board.tmaPen, end, capEnd);
+
+          if(errors.Count != 0)
+          {
+            const int StackWidth = 101, MinStackHeight = 128;
+
+            SysRect dotStackRect = new SysRect(0, 0, StackWidth, Math.Max(MinStackHeight, errors.Count*6 + Board.Font.Height + 8));
+            using(Brush dimBrush = new SolidBrush(Color.FromArgb(192, 0, 0, 0))) graphics.FillRectangle(dimBrush, dotStackRect);
+
+            // the base error is 10 meters per pixel, but if the average error magnitude is greater than the available space, scale down by
+            // some integer amount to let them see better
+            const int BaseMPP = 10;
+            float errorScale = errors.Select(err => Math.Abs(err)).Average() * (1f/(StackWidth/2*BaseMPP));
+            string scaleString;
+            if(errorScale > 1)
+            {
+              errorScale  = (float)Math.Ceiling(errorScale);
+              scaleString = "1 : " + errorScale.ToString();
+              errorScale  = (1f/BaseMPP) / errorScale;
+            }
+            else // otherwise, everything fits, so show it as-is
+            {
+              errorScale  = (1f/BaseMPP);
+              scaleString = "1 : 1";
+            }
+
+            graphics.DrawString(scaleString, Board.Font, Brushes.White,
+              dotStackRect.X + (int)Math.Round((dotStackRect.Width - graphics.MeasureString(scaleString, Board.Font).Width) * 0.5f),
+              dotStackRect.Y + 2);
+            graphics.DrawHLine(Pens.White, dotStackRect.X, dotStackRect.Y + Board.Font.Height + 4, dotStackRect.Right-1);
+            graphics.DrawVLine(Pens.White, dotStackRect.X + dotStackRect.Width/2, dotStackRect.Y + Board.Font.Height + 4,
+                               dotStackRect.Bottom-1);
+
+            // TODO: should we position the dots vertically based on their time (i.e. if some observations are further apart in time, should
+            // they be further apart vertically?)
+            // TODO: what about dots that correspond to the same time (e.g. observations from two sensors?)
+            for(int x=dotStackRect.X+dotStackRect.Width/2, y=dotStackRect.Y+Board.Font.Height+8, i=errors.Count-1; i >= 0; y += 6, i--)
+            {
+              float dotX = x + errors[i]*errorScale;
+              if(dotX < dotStackRect.X) dotX = dotStackRect.X;
+              else if(dotX > dotStackRect.Right-1) dotX = dotStackRect.Right-1;
+
+              graphics.FillRectangle(Brushes.Lime, dotX-1, y, 3, 3);
+            }
+          }
+        }
+      }
+
+      public override void OnSelectionChanged(Shape previousSelection)
+      {
+        UpdateTMASolution(GetSelectedUnit(previousSelection));
+
+        if(Board.SelectedShape is UnitShape || Board.SelectedShape is PositionalDataShape)
+        {
+          ShowForm();
+          Initialize();
+        }
+        else
+        {
+          HideForm();
+        }
+      }
+
+      enum DragMode
+      {
+        None, Start, Middle, End
+      }
+
+      UnitShape GetSelectedUnit()
+      {
+        return GetSelectedUnit(Board.SelectedShape);
+      }
+
+      UnitShape GetSelectedUnit(Shape shape)
+      {
+        UnitShape unit = shape as UnitShape;
+        if(unit == null && shape != null) unit = shape.Parent as UnitShape;
+        return unit;
+      }
+
+      void HideForm()
+      {
+        if(form != null)
+        {
+          form.Hide();
+          form = null;
+        }
+      }
+
+      void Initialize()
+      {
+        UnitShape unit = GetSelectedUnit();
+        if(unit != null)
+        {
+          if(unit.TMASolution == null)
+          {
+            position = unit.Position;
+            velocity = unit.Velocity;
+            form.LockCourse = form.LockSpeed = false;
+          }
+          else
+          {
+            position = unit.TMASolution.Position;
+            velocity = unit.TMASolution.Velocity;
+            form.LockCourse = unit.TMASolution.LockCourse;
+            form.LockSpeed  = unit.TMASolution.LockSpeed;
+          }
+
+          // TODO: handle events that would change maxTime, like updating an observation's data
+          maxTime = 0;
+          foreach(BearingObservation bearing in unit.Children.OfType<BearingObservation>())
+          {
+            double time = bearing.Time.TotalSeconds;
+            if(time > maxTime) maxTime = time;
+          }
+        }
+
+        OnArrowMoved();
+      }
+
+      void OnArrowMoved()
+      {
+        form.Course = velocity == Vector2.Zero ? 0 : SwapBearing(velocity.Angle);
+        form.Speed  = velocity.Length;
+        Board.Invalidate();
+      }
+
+      void ShowForm()
+      {
+        if(form == null)
+        {
+          form = new TMAForm();
+          form.Location = Board.PointToScreen(new Point(Board.Width - form.Width, 0));
+          form.ApplySolution += form_ApplySolution;
+          form.AutoSolve += form_AutoSolve;
+          form.CourseChanged += form_CourseChanged;
+          form.FormClosed += form_FormClosed;
+          form.SpeedChanged += form_SpeedChanged;
+          form.Show(Board.FindForm());
+          Board.FindForm().Select(); // give focus back to the main form
+        }
+      }
+
+      void UpdateTMASolution(UnitShape unit)
+      {
+        if(unit != null)
+        {
+          if(unit.TMASolution == null) unit.TMASolution = new TMASolution();
+          unit.TMASolution.Position = position;
+          unit.TMASolution.Velocity = velocity;
+          unit.TMASolution.LockCourse = form.LockCourse;
+          unit.TMASolution.LockSpeed  = form.LockSpeed;
+        }
+      }
+
+      void form_ApplySolution(object sender, EventArgs e)
+      {
+        UnitShape unit = GetSelectedUnit();
+        unit.Position  = position;
+        unit.Speed     = velocity.Length;
+        unit.Direction = SwapBearing(velocity.Angle);
+        Board.Invalidate();
+        Board.FindForm().Select();
+      }
+
+      void form_AutoSolve(object sender, EventArgs e)
+      {
+        AdamMil.Mathematics.Matrix4 matrix = new AdamMil.Mathematics.Matrix4();
+        double[] constSum = new double[4];
+
+        UnitShape unit = GetSelectedUnit();
+        foreach(Observation observation in unit.Children.OfType<Observation>())
+        {
+          double time = observation.Time.TotalSeconds, timeSqr = time*time;
+          BearingObservation bearing = observation as BearingObservation;
+          if(bearing != null)
+          {
+            BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
+            Vector2 bearingLine = new Vector2(0, 1).Rotated(-bearing.Bearing);
+            double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
+
+            matrix.M00 += sySqr;
+            matrix.M01 += -sxy;
+            matrix.M02 += sySqr*time;
+            matrix.M03 += -sxy*time;
+            constSum[0] += observerPosition.X*sySqr - observerPosition.Y*sxy;
+
+            matrix.M10 += -sxy;
+            matrix.M11 += sxSqr;
+            matrix.M12 += -time*sxy;
+            matrix.M13 += time*sxSqr;
+            constSum[1] += observerPosition.Y*sxSqr - observerPosition.X*sxy;
+
+            matrix.M20 += time*sySqr;
+            matrix.M21 += -time*sxy;
+            matrix.M22 += timeSqr*sySqr;
+            matrix.M23 += -timeSqr*sxy;
+            constSum[2] += observerPosition.X*time*sySqr - observerPosition.Y*time*sxy;
+
+            matrix.M30 += -time*sxy;
+            matrix.M31 += time*sxSqr;
+            matrix.M32 += -timeSqr*sxy;
+            matrix.M33 += timeSqr*sxSqr;
+            constSum[3] += observerPosition.Y*time*sxSqr - observerPosition.X*time*sxy;
+          }
+
+          PointObservation point = observation as PointObservation;
+          if(point != null)
+          {
+            matrix.M00 += 1;
+            matrix.M02 += time;
+            constSum[0] += point.Position.X;
+
+            matrix.M11 += 1;
+            matrix.M13 += time;
+            constSum[1] += point.Position.Y;
+
+            matrix.M20 += time;
+            matrix.M22 += timeSqr;
+            constSum[2] += time*point.Position.X;
+
+            matrix.M31 += time;
+            matrix.M33 += timeSqr;
+            constSum[3] += time*point.Position.Y;
+          }
+        }
+
+        try
+        {
+          LUDecomposition lud = new LUDecomposition(matrix.ToMatrix());
+          AdamMil.Mathematics.Matrix values = lud.Solve(new AdamMil.Mathematics.Matrix(constSum, 1));
+
+          position = new BoardPoint(values[0, 0], values[1, 0]);
+          velocity = new Vector2(values[2, 0], values[3, 0]);
+          if(velocity.Length < 0.000001) velocity = Vector2.Zero; // GDI+ crashes when trying to render short lines, so avoid small speeds
+          OnArrowMoved();
+        }
+        catch(InvalidOperationException)
+        {
+          MessageBox.Show("Unable to solve for any TMA solution. More or better observational data is needed.", "No TMA solution",
+                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        Board.FindForm().Select();
+      }
+
+      void form_CourseChanged(object sender, EventArgs e)
+      {
+        if(velocity != Vector2.Zero)
+        {
+          velocity = new Vector2(0, velocity.Length).Rotated(-form.Course);
+          Board.Invalidate();
+        }
+      }
+
+      void form_FormClosed(object sender, FormClosedEventArgs e)
+      {
+        if(Board.SelectedTool == this) Board.SelectedTool = Board.PointerTool;
+      }
+
+      void form_SpeedChanged(object sender, EventArgs e)
+      {
+        velocity = new Vector2(form.Speed, 0).Rotated(velocity == Vector2.Zero ? 0 : velocity.Angle);
+        Board.Invalidate();
+      }
+
+      TMAForm form;
+      BoardPoint position, dragStart, dragPoint;
+      Vector2 velocity;
+      double maxTime;
+      DragMode dragMode;
+    }
+    #endregion
+
+    public event EventHandler ReferenceShapeChanged, SelectionChanged, StatusTextChanged, ToolChanged;
+
+    public BoardPoint BackgroundImageCenter
+    {
+      get { return _bgCenter; }
+      set
+      {
+        if(value != BackgroundImageCenter)
+        {
+          _bgCenter = value;
+          Invalidate();
+        }
+      }
+    }
+
+    public double BackgroundImageScale
+    {
+      get { return _bgScale; }
+      set
+      {
+        if(value != BackgroundImageScale)
+        {
+          if(value <= 0) throw new ArgumentOutOfRangeException();
+          _bgScale = value;
+          Invalidate();
+        }
+      }
+    }
 
     public string StatusText
     {
@@ -798,6 +1432,7 @@ namespace Maneubo
         {
           if(value != null && value.Board != this) throw new ArgumentException("The shape does not belong to this maneuvering board.");
           _referenceShape = value;
+          OnReferenceShapeChanged();
           Invalidate();
         }
       }
@@ -813,8 +1448,9 @@ namespace Maneubo
         if(value != SelectedShape)
         {
           if(value != null && value.Board != this) throw new ArgumentException("The shape does not belong to this maneuvering board.");
+          Shape previousSelection = SelectedShape;
           _selectedShape = value;
-          OnSelectionChanged();
+          OnSelectionChanged(previousSelection);
           Invalidate();
         }
       }
@@ -829,9 +1465,10 @@ namespace Maneubo
         if(value != SelectedTool)
         {
           if(value == null) throw new ArgumentNullException();
-          if(SelectedTool != null) SelectedTool.Deactivate();
+          Tool previousTool = SelectedTool;
           Cursor = Cursors.Default;
           _currentTool = value;
+          if(previousTool != null) previousTool.Deactivate();
           SelectedTool.Activate();
           OnToolChanged();
         }
@@ -947,6 +1584,8 @@ namespace Maneubo
     public readonly AddObservationToolClass AddObservationTool;
     public readonly AddUnitToolClass AddUnitTool;
     public readonly PointerToolClass PointerTool;
+    public readonly SetupBackgroundToolClass SetupBackgroundTool;
+    public readonly TMAToolClass TMATool;
 
     public static double AngleBetween(BoardPoint from, BoardPoint to)
     {
@@ -1038,12 +1677,14 @@ namespace Maneubo
       Utility.Dispose(ref normalPen);
       Utility.Dispose(ref selectedPen);
       Utility.Dispose(ref referencePen);
+      Utility.Dispose(ref tmaPen);
       Utility.Dispose(ref observationPen);
       Utility.Dispose(ref selectedObservationPen);
       Utility.Dispose(ref normalBrush);
       Utility.Dispose(ref selectedBrush);
       Utility.Dispose(ref referenceBrush);
       Utility.Dispose(ref observationBrush);
+      Utility.Dispose(ref backgroundImage);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -1091,7 +1732,7 @@ namespace Maneubo
 
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Items.Add("&Edit shape data", null, (o, ea) => EditShape(shape));
-            if(!(shape is Observation) && ReferenceShape != null && shape.Parent != ReferenceShape &&
+            if(!(shape is PositionalDataShape) && ReferenceShape != null && shape.Parent != ReferenceShape &&
                !shape.IsAncestorOf(ReferenceShape, true))
             {
               menu.Items.Add("Make &child of reference unit", null, (o, ea) => MakeChildOf(shape, ReferenceShape));
@@ -1102,7 +1743,7 @@ namespace Maneubo
             }
             menu.Items.Add("-");
             menu.Items.Add("&Delete", null, (o, ea) => DeleteShape(shape, false));
-            if(shape.Children.Any(c => !(c is Observation))) // if the shape has children that aren't observations...
+            if(shape.Children.Any(c => !(c is PositionalDataShape))) // if the shape has children that aren't observations...
             {
               menu.Items.Add("&Delete recursively", null, (o, ea) => DeleteShape(shape, true));
             }
@@ -1124,14 +1765,14 @@ namespace Maneubo
           if(shape != null)
           {
             SelectedShape = shape;
-            dragStart = shape.Position;
-            dragMode  = DragMode.MoveItem;
+            dragMode = DragMode.MoveItem;
             return;
           }
         }
         else if(e.Button == MouseButtons.Right) // right drag scrolls the view
         {
           dragStart = Center;
+          dragPoint = GetBoardPoint(e.Location);
           dragMode  = DragMode.Scroll;
           return;
         }
@@ -1147,13 +1788,13 @@ namespace Maneubo
 
       if(dragMode == DragMode.MoveItem)
       {
-        SelectedShape.Position = dragStart + GetBoardSize(new Size(e.X-e.Start.X, e.Y-e.Start.Y));
+        SelectedShape.Position = GetBoardPoint(e.Location);
+        Invalidate();
       }
       else if(dragMode == DragMode.Scroll)
       {
         Center = dragStart; // reset the camera so that the correct mouse movement can be calculated
-        Vector2 offset = GetBoardSize(new Size(e.X-e.Start.X, e.Y-e.Start.Y));
-        Center -= offset; // move the camera in the opposite direction of the mouse movement
+        Center = dragStart - (GetBoardPoint(e.Location) - dragPoint);
       }
       else
       {
@@ -1171,6 +1812,14 @@ namespace Maneubo
     protected override void OnMouseMove(MouseEventArgs e)
     {
       base.OnMouseMove(e);
+
+      if(ReferenceShape != null)
+      {
+        BoardPoint cursor = GetBoardPoint(PointToClient(Cursor.Position));
+        double angle = AngleBetween(ReferenceShape.Position, cursor) * MathConst.RadiansToDegrees;
+        StatusText = angle.ToString("f2") + "°, " + GetDistanceString((cursor-ReferenceShape.Position).Length);
+      }
+
       SelectedTool.MouseMove(e);
     }
 
@@ -1193,6 +1842,7 @@ namespace Maneubo
     protected override void OnPaint(PaintEventArgs e)
     {
       base.OnPaint(e);
+
       using(Brush brush = new SolidBrush(BackColor)) e.Graphics.FillRectangle(brush, e.ClipRectangle);
 
       e.Graphics.PageUnit           = GraphicsUnit.Pixel;
@@ -1200,6 +1850,14 @@ namespace Maneubo
       e.Graphics.CompositingMode    = CompositingMode.SourceOver;
       e.Graphics.CompositingQuality = CompositingQuality.HighSpeed;
       e.Graphics.InterpolationMode  = InterpolationMode.Bilinear;
+
+      if(BackgroundImage != null)
+      {
+        double scale = BackgroundImageScale * ZoomFactor, width = BackgroundImage.Width*scale, height = BackgroundImage.Height*scale;
+        double centerX = (BackgroundImageCenter.X-Center.X)*ZoomFactor + Width*0.5;
+        double centerY = (Center.Y-BackgroundImageCenter.Y)*ZoomFactor + Height*0.5;
+        e.Graphics.DrawImage(BackgroundImage, (float)(centerX-width*0.5), (float)(centerY-height*0.5), (float)width, (float)height);
+      }
 
       Matrix originalTransform = e.Graphics.Transform;
       e.Graphics.TranslateTransform(Width*0.5f-(float)(Center.X*ZoomFactor), Height*0.5f+(float)(Center.Y*ZoomFactor));
@@ -1240,6 +1898,7 @@ namespace Maneubo
       Invalidate();
     }
 
+    internal const int VectorTime = 360; // the length of motion vectors
     enum DragMode { None, MoveItem, Scroll }
 
     void DeleteObservationsBy(UnitShape unit)
@@ -1274,7 +1933,7 @@ namespace Maneubo
         for(int i=shape.Children.Count-1; i >= 0; i--)
         {
           Shape child = shape.Children[i];
-          if(!(child is Observation)) // if it's not an observation, then make it a sibling of the deleted item
+          if(!(child is PositionalDataShape)) // if it's not an observation, then make it a sibling of the deleted item
           {
             shape.Children.RemoveAt(i);
             shapes.Add(child);
@@ -1285,29 +1944,26 @@ namespace Maneubo
       // if the selected shape or the reference shape were deleted, unselect them or select something else
       if(SelectedShape != null && SelectedShape.Board == null)
       {
-        // if the shape was an observation, select either the next or previous observation in the chain or the parent unit
+        // if the shape was positional data, select either the next or previous shape in the chain or the parent unit
         Shape newSelection = null;
         if(parent != null)
         {
-          Observation observation = shape as Observation;
-          if(observation != null)
+          PositionalDataShape posData = shape as PositionalDataShape;
+          if(posData != null)
           {
-            UnitShape observer = observation.Observer;
+            UnitShape observer = posData is Observation ? ((Observation)posData).Observer : null;
+            Predicate<PositionalDataShape> inSameChain = 
+              s => s != null && s.GetType() == shape.GetType() && (!(s is Observation) || ((Observation)s).Observer == observer);
+
             if(index < parent.Children.Count)
             {
-              observation = parent.Children[index] as Observation;
-              if(observation != null && observation.Observer == observer && observation.GetType() == shape.GetType())
-              {
-                newSelection = observation;
-              }
+              posData = parent.Children[index] as PositionalDataShape;
+              if(inSameChain(posData)) newSelection = posData;
             }
             if(newSelection == null && index > 0)
             {
-              observation = parent.Children[index-1] as Observation;
-              if(observation != null && observation.Observer == observer && observation.GetType() == shape.GetType())
-              {
-                newSelection = observation;
-              }
+              posData = parent.Children[index-1] as PositionalDataShape;
+              if(inSameChain(posData)) newSelection = posData;
             }
             if(newSelection == null) newSelection = parent;
           }
@@ -1319,20 +1975,20 @@ namespace Maneubo
       if(ReferenceShape != null && ReferenceShape.Board == null) ReferenceShape = null;
     }
 
-    bool EditObservation(Observation observation)
+    bool EditPositionalData(PositionalDataShape posData)
     {
-      ObservationDataForm form = new ObservationDataForm(observation, UnitSystem);
+      PositionalDataForm form = new PositionalDataForm(posData, UnitSystem);
       if(form.ShowDialog() == DialogResult.OK)
       {
-        if(observation is BearingObservation) ((BearingObservation)observation).Bearing = form.Bearing;
-        else observation.Position = form.Position;
-        observation.Time = form.Time;
+        if(posData is BearingObservation) ((BearingObservation)posData).Bearing = form.Bearing;
+        else posData.Position = form.Position;
+        posData.Time = form.Time;
 
         // we'll sort the observations based on observer, type, and time, to allow observations to find the adjacent observations in a
         // chain just by taking the observations at adjacent indices
         
         // make note of the indexes of all the items
-        Shape.ChildCollection shapes = observation.Parent.Children;
+        Shape.ChildCollection shapes = posData.Parent.Children;
         int[] indexes = new int[shapes.Count];
         for(int i=0; i<indexes.Length; i++) indexes[i] = i;
 
@@ -1341,20 +1997,24 @@ namespace Maneubo
         Array.Sort(indexes, (ai, bi) =>
         {
           // first sort observations after non-observations
-          Observation a = shapes[ai] as Observation, b = shapes[bi] as Observation;
-          if(a == null) return b == null ? ai - bi : -1; // maintain the order between non-observations
+          PositionalDataShape a = shapes[ai] as PositionalDataShape, b = shapes[bi] as PositionalDataShape;
+          if(a == null) return b == null ? ai - bi : -1; // maintain the order between other types of shapes
           else if(b == null) return 1;
 
           // then sort observations by type
           Type aType = a.GetType(), bType = b.GetType();
-          if(aType != bType) return a.Name.CompareTo(b.Name);
+          if(aType != bType) return aType.Name.CompareTo(bType.Name);
 
           // then sort by observer
-          if(a.Observer != b.Observer)
+          if(aType != typeof(Waypoint))
           {
-            if(!observerNumbers.ContainsKey(a.Observer)) observerNumbers.Add(a.Observer, observerNumbers.Count);
-            if(!observerNumbers.ContainsKey(b.Observer)) observerNumbers.Add(b.Observer, observerNumbers.Count);
-            return observerNumbers[a.Observer] - observerNumbers[b.Observer];
+            Observation oa = (Observation)a, ob = (Observation)b;
+            if(oa.Observer != ob.Observer)
+            {
+              if(!observerNumbers.ContainsKey(oa.Observer)) observerNumbers.Add(oa.Observer, observerNumbers.Count);
+              if(!observerNumbers.ContainsKey(ob.Observer)) observerNumbers.Add(ob.Observer, observerNumbers.Count);
+              return observerNumbers[oa.Observer] - observerNumbers[ob.Observer];
+            }
           }
 
           // then sort by time
@@ -1386,10 +2046,10 @@ namespace Maneubo
     void EditShape(Shape shape)
     {
       if(shape == null) throw new ArgumentNullException();
-      Observation observation = shape as Observation;
+      PositionalDataShape observation = shape as PositionalDataShape;
       if(observation != null)
       {
-        EditObservation(observation);
+        EditPositionalData(observation);
       }
       else
       {
@@ -1439,12 +2099,16 @@ namespace Maneubo
       }
     }
 
-    void OnSelectionChanged()
+    void OnReferenceShapeChanged()
     {
-      // deselect incompatible tools
-      if(SelectedShape == null && SelectedTool == AddObservationTool) SelectedTool = PointerTool;
+      if(ReferenceShape == null && SelectedTool == AddObservationTool) SelectedTool = PointerTool;
+      if(ReferenceShapeChanged != null) ReferenceShapeChanged(this, EventArgs.Empty);
+    }
 
+    void OnSelectionChanged(Shape previousSelection)
+    {
       if(SelectionChanged != null) SelectionChanged(this, EventArgs.Empty);
+      SelectedTool.OnSelectionChanged(previousSelection);
     }
 
     void OnStatusTextChanged()
@@ -1455,12 +2119,14 @@ namespace Maneubo
     void OnToolChanged()
     {
       if(ToolChanged != null) ToolChanged(this, EventArgs.Empty);
+      Invalidate();
     }
 
     internal Brush normalBrush, selectedBrush, referenceBrush, observationBrush;
-    internal Pen normalPen, selectedPen, referencePen, observationPen, selectedObservationPen;
-    BoardPoint _center, dragStart;
-    double _zoom = 1;
+    internal Pen normalPen, selectedPen, referencePen, tmaPen, observationPen, selectedObservationPen;
+    Image backgroundImage;
+    BoardPoint _bgCenter, _center, dragStart, dragPoint;
+    double _zoom = 1, _bgScale = 1;
     Tool _currentTool;
     UnitShape _referenceShape;
     Shape _selectedShape;

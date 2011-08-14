@@ -67,6 +67,13 @@ namespace Maneubo.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap IconBackground {
+            get {
+                object obj = ResourceManager.GetObject("IconBackground", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
         internal static System.Drawing.Bitmap IconBoat {
             get {
                 object obj = ResourceManager.GetObject("IconBoat", resourceCulture);
@@ -133,6 +140,13 @@ namespace Maneubo.Properties {
         internal static System.Drawing.Bitmap IconSurface {
             get {
                 object obj = ResourceManager.GetObject("IconSurface", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap IconTMA {
+            get {
+                object obj = ResourceManager.GetObject("IconTMA", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

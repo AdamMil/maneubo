@@ -29,10 +29,12 @@ namespace Maneubo
     bool CloseBoard()
     {
       if(!TrySaveChanges()) return false;
+      board.SelectedTool = board.PointerTool;
       board.ReferenceShape = null;
       board.SelectedShape = null;
       board.RootShapes.Clear();
       board.WasChanged = false;
+      board.BackgroundImage = null;
       fileName = null;
       return true;
     }
@@ -68,6 +70,7 @@ namespace Maneubo
         board.ZoomFactor = 1.0/32;
         board.RootShapes.Add(ownShip);
         board.ReferenceShape = ownShip;
+        board.SelectedShape  = ownShip;
       }
     }
 
@@ -98,6 +101,20 @@ namespace Maneubo
       return dialog.ShowDialog() == DialogResult.OK && SaveBoard(dialog.FileName);
     }
 
+    bool SetBackgroundImage()
+    {
+      BackgroundImageForm form = new BackgroundImageForm();
+      if(form.ShowDialog() == DialogResult.OK)
+      {
+        board.BackgroundImage       = form.Image;
+        board.BackgroundImageCenter = board.Center;
+        board.BackgroundImageScale  = ((double)board.Width / form.Image.Width) / board.ZoomFactor;
+        board.SelectedTool = board.SetupBackgroundTool;
+        return true;
+      }
+      return false;
+    }
+
     bool TrySaveChanges()
     {
       if(board.WasChanged)
@@ -109,9 +126,10 @@ namespace Maneubo
       return true;
     }
 
-    void board_SelectionChanged(object sender, EventArgs e)
+    void board_BackgroundImageChanged(object sender, EventArgs e)
     {
-      tbAddObservation.Enabled = tbWaypointType.Enabled = board.SelectedShape is UnitShape || board.SelectedShape is Observation;
+      miRemoveBackground.Enabled = board.BackgroundImage != null;
+      if(board.SelectedTool == board.SetupBackgroundTool) board.SelectedTool = board.PointerTool;
     }
 
     void board_StatusTextChanged(object sender, EventArgs e)
@@ -125,15 +143,23 @@ namespace Maneubo
       if(board.SelectedTool == board.PointerTool) toolBarButton = tbPointer;
       else if(board.SelectedTool == board.AddUnitTool) toolBarButton = tbAddUnit;
       else if(board.SelectedTool == board.AddObservationTool) toolBarButton = tbAddObservation;
+      else if(board.SelectedTool == board.TMATool) toolBarButton = tbTMA;
+      else if(board.SelectedTool == board.SetupBackgroundTool) toolBarButton = tbSetBackground;
       else throw new NotImplementedException();
 
       foreach(ToolStripButton button in toolStrip.Items.OfType<ToolStripButton>()) button.Checked = button == toolBarButton;
+    }
+
+    void miBackgroundImage_Click(object sender, EventArgs e)
+    {
+      SetBackgroundImage();
     }
 
     void miContactShape_Click(object sender, EventArgs e)
     {
       tbAddUnit.Image = ((ToolStripMenuItem)sender).Image;
       foreach(ToolStripMenuItem item in tbUnitShape.DropDownItems) item.Checked = item == sender;
+      tbAddUnit.PerformClick();
     }
 
     void miExit_Click(object sender, EventArgs e)
@@ -146,12 +172,18 @@ namespace Maneubo
       ToolStripMenuItem menuItem = (ToolStripMenuItem)sender;
       tbAddObservation.Image = menuItem.Image;
       foreach(ToolStripMenuItem item in tbWaypointType.DropDownItems) item.Checked = item == sender;
-      board.AddObservationTool.Type = (ObservationType)menuItem.Tag;
+      board.AddObservationTool.Type = (PositionalDataType)menuItem.Tag;
+      tbAddObservation.PerformClick();
     }
 
     void miOpen_Click(object sender, EventArgs e)
     {
       OpenBoard();
+    }
+
+    void miRemoveBackground_Click(object sender, EventArgs e)
+    {
+      board.BackgroundImage = null;
     }
 
     void miSave_Click(object sender, EventArgs e)
@@ -177,6 +209,16 @@ namespace Maneubo
     void tbPointer_Click(object sender, EventArgs e)
     {
       board.SelectedTool = board.PointerTool;
+    }
+
+    void tbSetBackground_Click(object sender, EventArgs e)
+    {
+      if(board.BackgroundImage != null || SetBackgroundImage()) board.SelectedTool = board.SetupBackgroundTool;
+    }
+
+    void tbTMA_Click(object sender, EventArgs e)
+    {
+      board.SelectedTool = board.TMATool;
     }
 
     string fileName;
