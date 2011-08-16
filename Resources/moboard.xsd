@@ -1,0 +1,152 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="moboard" targetNamespace="http://www.adammil.net/Maneubo/moboard"
+           xmlns="http://www.adammil.net/Maneubo/moboard" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:simpleType name="nonNegativeDouble">
+    <xs:restriction base="xs:double">
+      <xs:minInclusive value="0" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="positiveDouble">
+    <xs:restriction base="xs:double">
+      <xs:minExclusive value="0" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="timeSpan">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(\d+:)?\d+(:\d+)?" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="unitType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="air" />
+      <xs:enumeration value="boat" />
+      <xs:enumeration value="helicopter" />
+      <xs:enumeration value="ownShip" />
+      <xs:enumeration value="subsurface" />
+      <xs:enumeration value="surface" />
+      <xs:enumeration value="unknown" />
+      <xs:enumeration value="weapon" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="vector">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(\d*\.\d+|\d+)\s*,\s*(\d*\.\d+|\d+)" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="bgImage">
+    <xs:sequence>
+      <xs:element name="imageData" type="xs:base64Binary" />
+    </xs:sequence>
+    <xs:attribute name="centerPosition" type="vector" default="0,0" />
+    <xs:attribute name="zoom" type="positiveDouble" default="1" />
+  </xs:complexType>
+
+  <xs:complexType name="circle">
+    <xs:attribute name="position" type="vector" use="required" />
+    <xs:attribute name="radius" type="nonNegativeDouble" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="line">
+    <xs:attribute name="start" type="vector" use="required" />
+    <xs:attribute name="end" type="vector" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="posData" abstract="true">
+    <xs:attribute name="time" type="timeSpan" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="observation" abstract="true">
+    <xs:complexContent>
+      <xs:extension base="posData">
+        <xs:attribute name="observer" type="xs:IDREF" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="bearingObservation">
+    <xs:complexContent>
+      <xs:extension base="observation">
+        <xs:attribute name="bearing" type="xs:double" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="pointObservation">
+    <xs:complexContent>
+      <xs:extension base="observation">
+        <xs:attribute name="position" type="vector" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="waypoint">
+    <xs:complexContent>
+      <xs:extension base="posData">
+        <xs:attribute name="position" type="vector" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="tmaSolution">
+    <xs:attribute name="position" type="vector" use="required" />
+    <xs:attribute name="velocity" type="vector" use="required" />
+    <xs:attribute name="lockCourse" type="xs:boolean" default="false" />
+    <xs:attribute name="lockSpeed" type="xs:boolean" default="false" />
+  </xs:complexType>
+  
+  <xs:complexType name="unit">
+    <xs:sequence>
+      <xs:element name="tmaSolution" type="tmaSolution" minOccurs="0" />
+      <xs:element name="children" minOccurs="0">
+        <xs:complexType>
+          <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="pointObservation" type="pointObservation" />
+            <xs:element name="bearingObservation" type="bearingObservation" />
+            <xs:element name="waypoint" type="waypoint" />
+            <xs:element name="unit" type="unit" />
+            <xs:element name="circle" type="circle" />
+            <xs:element name="line" type="line" />
+          </xs:choice>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+
+    <xs:attribute name="id" type="xs:ID" />
+    <xs:attribute name="name" type="xs:string" />
+    <xs:attribute name="position" type="vector" use="required" />
+    <xs:attribute name="course" type="xs:double" default="0" />
+    <xs:attribute name="speed" type="nonNegativeDouble" default="0" />
+    <xs:attribute name="type" type="unitType" default="unknown" />
+  </xs:complexType>
+
+  <xs:complexType name="shapes">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="unit" type="unit" />
+      <xs:element name="circle" type="circle" />
+      <xs:element name="line" type="line" />
+    </xs:choice>
+  </xs:complexType>
+
+  <xs:complexType name="view">
+    <xs:attribute name="cameraPosition" type="vector" default="0,0" />
+    <xs:attribute name="zoom" type="positiveDouble" default="1" />
+  </xs:complexType>
+
+  <xs:element name="moboard">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="shapes" type="shapes" minOccurs="0" />
+        <xs:element name="view" type="view" minOccurs="0" />
+        <xs:element name="bgImage" type="bgImage" minOccurs="0" />
+      </xs:sequence>
+      
+      <xs:attribute name="version" type="xs:positiveInteger" use="required" />
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

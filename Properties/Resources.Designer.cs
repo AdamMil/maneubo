@@ -60,6 +60,13 @@ namespace Maneubo.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap About {
+            get {
+                object obj = ResourceManager.GetObject("About", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
         internal static System.Drawing.Bitmap IconAir {
             get {
                 object obj = ResourceManager.GetObject("IconAir", resourceCulture);

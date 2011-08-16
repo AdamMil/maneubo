@@ -179,7 +179,7 @@
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 6;
-      btnCancel.Text = "Cancel";
+      btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
       // 
       // grpObservation
@@ -207,7 +207,7 @@
       lblTime.Name = "lblTime";
       lblTime.Size = new System.Drawing.Size(30, 13);
       lblTime.TabIndex = 1;
-      lblTime.Text = "Time";
+      lblTime.Text = "&Time";
       lblTime.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // grpObserved
@@ -222,7 +222,7 @@
       this.grpObserved.Size = new System.Drawing.Size(196, 73);
       this.grpObserved.TabIndex = 3;
       this.grpObserved.TabStop = false;
-      this.grpObserved.Text = "Relative to Observed";
+      this.grpObserved.Text = "Relative to O&bserved";
       // 
       // txtObservedDistance
       // 
@@ -254,7 +254,7 @@
       this.grpObserver.Size = new System.Drawing.Size(196, 73);
       this.grpObserver.TabIndex = 2;
       this.grpObserver.TabStop = false;
-      this.grpObserver.Text = "Relative to Observer";
+      this.grpObserver.Text = "Relative to &Observer";
       // 
       // txtObserverDistance
       // 
@@ -286,7 +286,7 @@
       this.grpPrevious.Size = new System.Drawing.Size(196, 73);
       this.grpPrevious.TabIndex = 4;
       this.grpPrevious.TabStop = false;
-      this.grpPrevious.Text = "Relative to Previous Point";
+      this.grpPrevious.Text = "Relative to &Previous Point";
       // 
       // txtPreviousDistance
       // 

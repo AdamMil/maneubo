@@ -43,7 +43,7 @@
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 2;
-      btnOK.Text = "OK";
+      btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
@@ -55,7 +55,7 @@
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 3;
-      btnCancel.Text = "Cancel";
+      btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
       // 
       // lblPixels

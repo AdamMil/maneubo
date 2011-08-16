@@ -56,7 +56,7 @@
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 5;
-      btnOK.Text = "OK";
+      btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 

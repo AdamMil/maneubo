@@ -51,19 +51,19 @@
       System.Windows.Forms.ToolStripMenuItem miSurfaceContact;
       System.Windows.Forms.ToolStripMenuItem miUnknownContact;
       System.Windows.Forms.ToolStripMenuItem miWeaponContact;
-      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
       System.Windows.Forms.ToolStripMenuItem miPointObs;
       System.Windows.Forms.ToolStripMenuItem miBearingObs;
       System.Windows.Forms.ToolStripMenuItem miWaypoint;
+      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
       this.miRemoveBackground = new System.Windows.Forms.ToolStripMenuItem();
       this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
       this.lblToolStatus = new System.Windows.Forms.ToolStripStatusLabel();
       this.tbUnitShape = new System.Windows.Forms.ToolStripDropDownButton();
       this.toolStrip = new System.Windows.Forms.ToolStrip();
-      this.tbWaypointType = new System.Windows.Forms.ToolStripDropDownButton();
       this.tbPointer = new System.Windows.Forms.ToolStripButton();
       this.tbAddUnit = new System.Windows.Forms.ToolStripButton();
       this.tbAddObservation = new System.Windows.Forms.ToolStripButton();
+      this.tbWaypointType = new System.Windows.Forms.ToolStripDropDownButton();
       this.tbTMA = new System.Windows.Forms.ToolStripButton();
       this.tbLine = new System.Windows.Forms.ToolStripButton();
       this.tbCircle = new System.Windows.Forms.ToolStripButton();
@@ -182,7 +182,8 @@
       // miBackgroundImage
       // 
       miBackgroundImage.Name = "miBackgroundImage";
-      miBackgroundImage.Size = new System.Drawing.Size(205, 22);
+      miBackgroundImage.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.B)));
+      miBackgroundImage.Size = new System.Drawing.Size(273, 22);
       miBackgroundImage.Text = "Set &Background Image...";
       miBackgroundImage.Click += new System.EventHandler(this.miBackgroundImage_Click);
       // 
@@ -190,7 +191,9 @@
       // 
       this.miRemoveBackground.Enabled = false;
       this.miRemoveBackground.Name = "miRemoveBackground";
-      this.miRemoveBackground.Size = new System.Drawing.Size(205, 22);
+      this.miRemoveBackground.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
+            | System.Windows.Forms.Keys.B)));
+      this.miRemoveBackground.Size = new System.Drawing.Size(273, 22);
       this.miRemoveBackground.Text = "&Remove Background Image";
       this.miRemoveBackground.Click += new System.EventHandler(this.miRemoveBackground_Click);
       // 
@@ -219,8 +222,9 @@
       // miAbout
       // 
       miAbout.Name = "miAbout";
-      miAbout.Size = new System.Drawing.Size(115, 22);
+      miAbout.Size = new System.Drawing.Size(152, 22);
       miAbout.Text = "&About...";
+      miAbout.Click += new System.EventHandler(this.miAbout_Click);
       // 
       // statusStrip
       // 
@@ -245,75 +249,12 @@
       this.lblToolStatus.Size = new System.Drawing.Size(0, 17);
       this.lblToolStatus.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
       // 
-      // tbUnitShape
-      // 
-      this.tbUnitShape.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
-      this.tbUnitShape.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            miAirContact,
-            miBoatShape,
-            miHelicopterContact,
-            miOwnShip,
-            miSubsurfaceContact,
-            miSurfaceContact,
-            miUnknownContact,
-            miWeaponContact});
-      this.tbUnitShape.Name = "tbUnitShape";
-      this.tbUnitShape.Size = new System.Drawing.Size(13, 22);
-      this.tbUnitShape.Text = "Select Unit Shape";
-      // 
-      // toolStrip
-      // 
-      this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tbPointer,
-            this.tbAddUnit,
-            this.tbUnitShape,
-            this.tbAddObservation,
-            this.tbWaypointType,
-            this.tbTMA,
-            this.tbLine,
-            this.tbCircle,
-            this.tbSetBackground});
-      this.toolStrip.Location = new System.Drawing.Point(0, 24);
-      this.toolStrip.Name = "toolStrip";
-      this.toolStrip.Size = new System.Drawing.Size(792, 25);
-      this.toolStrip.TabIndex = 2;
-      // 
-      // tbWaypointType
-      // 
-      this.tbWaypointType.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbWaypointType.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            miPointObs,
-            miBearingObs,
-            miWaypoint});
-      this.tbWaypointType.Name = "tbWaypointType";
-      this.tbWaypointType.Size = new System.Drawing.Size(13, 22);
-      this.tbWaypointType.Text = "Select Observation/Waypoint Type";
-      // 
-      // tbPointer
-      // 
-      this.tbPointer.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbPointer.Image = global::Maneubo.Properties.Resources.IconPointer;
-      this.tbPointer.Name = "tbPointer";
-      this.tbPointer.Size = new System.Drawing.Size(23, 22);
-      this.tbPointer.Text = "Pointer";
-      this.tbPointer.Click += new System.EventHandler(this.tbPointer_Click);
-      // 
-      // tbAddUnit
-      // 
-      this.tbAddUnit.Checked = true;
-      this.tbAddUnit.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.tbAddUnit.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbAddUnit.Image = global::Maneubo.Properties.Resources.IconSurface;
-      this.tbAddUnit.Name = "tbAddUnit";
-      this.tbAddUnit.Size = new System.Drawing.Size(23, 22);
-      this.tbAddUnit.Text = "Add Unit";
-      this.tbAddUnit.Click += new System.EventHandler(this.tbAddUnit_Click);
-      // 
       // miAirContact
       // 
       miAirContact.Image = global::Maneubo.Properties.Resources.IconAir;
       miAirContact.Name = "miAirContact";
       miAirContact.Size = new System.Drawing.Size(128, 22);
+      miAirContact.Tag = Maneubo.UnitShapeType.Air;
       miAirContact.Text = "&Air";
       miAirContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -322,6 +263,7 @@
       miBoatShape.Image = global::Maneubo.Properties.Resources.IconBoat;
       miBoatShape.Name = "miBoatShape";
       miBoatShape.Size = new System.Drawing.Size(128, 22);
+      miBoatShape.Tag = Maneubo.UnitShapeType.Boat;
       miBoatShape.Text = "&Boat";
       miBoatShape.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -330,6 +272,7 @@
       miHelicopterContact.Image = global::Maneubo.Properties.Resources.IconHelo;
       miHelicopterContact.Name = "miHelicopterContact";
       miHelicopterContact.Size = new System.Drawing.Size(128, 22);
+      miHelicopterContact.Tag = Maneubo.UnitShapeType.Helicopter;
       miHelicopterContact.Text = "&Helicopter";
       miHelicopterContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -338,6 +281,7 @@
       miOwnShip.Image = global::Maneubo.Properties.Resources.IconOwnShip;
       miOwnShip.Name = "miOwnShip";
       miOwnShip.Size = new System.Drawing.Size(128, 22);
+      miOwnShip.Tag = Maneubo.UnitShapeType.OwnShip;
       miOwnShip.Text = "&Own Ship";
       miOwnShip.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -346,6 +290,7 @@
       miSubsurfaceContact.Image = global::Maneubo.Properties.Resources.IconSubsurface;
       miSubsurfaceContact.Name = "miSubsurfaceContact";
       miSubsurfaceContact.Size = new System.Drawing.Size(128, 22);
+      miSubsurfaceContact.Tag = Maneubo.UnitShapeType.Subsurface;
       miSubsurfaceContact.Text = "&Subsurface";
       miSubsurfaceContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -356,6 +301,7 @@
       miSurfaceContact.Image = global::Maneubo.Properties.Resources.IconSurface;
       miSurfaceContact.Name = "miSurfaceContact";
       miSurfaceContact.Size = new System.Drawing.Size(128, 22);
+      miSurfaceContact.Tag = Maneubo.UnitShapeType.Surface;
       miSurfaceContact.Text = "Su&rface";
       miSurfaceContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -364,6 +310,7 @@
       miUnknownContact.Image = global::Maneubo.Properties.Resources.IconUnknown;
       miUnknownContact.Name = "miUnknownContact";
       miUnknownContact.Size = new System.Drawing.Size(128, 22);
+      miUnknownContact.Tag = Maneubo.UnitShapeType.Unknown;
       miUnknownContact.Text = "&Unknown";
       miUnknownContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
@@ -372,70 +319,9 @@
       miWeaponContact.Image = global::Maneubo.Properties.Resources.IconWeapon;
       miWeaponContact.Name = "miWeaponContact";
       miWeaponContact.Size = new System.Drawing.Size(128, 22);
+      miWeaponContact.Tag = Maneubo.UnitShapeType.Weapon;
       miWeaponContact.Text = "&Weapon";
       miWeaponContact.Click += new System.EventHandler(this.miContactShape_Click);
-      // 
-      // tbAddObservation
-      // 
-      this.tbAddObservation.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbAddObservation.Image = global::Maneubo.Properties.Resources.IconObsPoint;
-      this.tbAddObservation.Name = "tbAddObservation";
-      this.tbAddObservation.Size = new System.Drawing.Size(23, 22);
-      this.tbAddObservation.Text = "Add Observation/Waypoint";
-      this.tbAddObservation.Click += new System.EventHandler(this.tbAddObservation_Click);
-      // 
-      // tbTMA
-      // 
-      this.tbTMA.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbTMA.Image = global::Maneubo.Properties.Resources.IconTMA;
-      this.tbTMA.Name = "tbTMA";
-      this.tbTMA.Size = new System.Drawing.Size(23, 22);
-      this.tbTMA.Text = "Target Motion Analysis";
-      this.tbTMA.Click += new System.EventHandler(this.tbTMA_Click);
-      // 
-      // tbLine
-      // 
-      this.tbLine.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbLine.Image = global::Maneubo.Properties.Resources.IconLine;
-      this.tbLine.Name = "tbLine";
-      this.tbLine.Size = new System.Drawing.Size(23, 22);
-      this.tbLine.Text = "Add Line";
-      // 
-      // tbCircle
-      // 
-      this.tbCircle.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbCircle.Image = global::Maneubo.Properties.Resources.IconCircle;
-      this.tbCircle.Name = "tbCircle";
-      this.tbCircle.Size = new System.Drawing.Size(23, 22);
-      this.tbCircle.Text = "Add Circle";
-      // 
-      // tbSetBackground
-      // 
-      this.tbSetBackground.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbSetBackground.Image = global::Maneubo.Properties.Resources.IconBackground;
-      this.tbSetBackground.Name = "tbSetBackground";
-      this.tbSetBackground.Size = new System.Drawing.Size(23, 22);
-      this.tbSetBackground.Text = "Setup Background Image";
-      this.tbSetBackground.Click += new System.EventHandler(this.tbSetBackground_Click);
-      // 
-      // board
-      // 
-      this.board.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(173)))), ((int)(((byte)(216)))), ((int)(((byte)(230)))));
-      this.board.BackgroundImageCenter = ((AdamMil.Mathematics.Geometry.Point2)(resources.GetObject("board.BackgroundImageCenter")));
-      this.board.BackgroundImageScale = 1D;
-      this.board.Cursor = System.Windows.Forms.Cursors.Default;
-      this.board.Dock = System.Windows.Forms.DockStyle.Fill;
-      this.board.Location = new System.Drawing.Point(0, 49);
-      this.board.Name = "board";
-      this.board.ReferenceShape = null;
-      this.board.SelectedShape = null;
-      this.board.Size = new System.Drawing.Size(792, 668);
-      this.board.TabIndex = 0;
-      this.board.UnitSystem = Maneubo.UnitSystem.NauticalMetric;
-      this.board.ZoomFactor = 1D;
-      this.board.StatusTextChanged += new System.EventHandler(this.board_StatusTextChanged);
-      this.board.ToolChanged += new System.EventHandler(this.board_ToolChanged);
-      this.board.BackgroundImageChanged += new System.EventHandler(this.board_BackgroundImageChanged);
       // 
       // miPointObs
       // 
@@ -466,6 +352,134 @@
       miWaypoint.Text = "&Waypoint";
       miWaypoint.Click += new System.EventHandler(this.miObsType_Click);
       // 
+      // tbUnitShape
+      // 
+      this.tbUnitShape.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.None;
+      this.tbUnitShape.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            miAirContact,
+            miBoatShape,
+            miHelicopterContact,
+            miOwnShip,
+            miSubsurfaceContact,
+            miSurfaceContact,
+            miUnknownContact,
+            miWeaponContact});
+      this.tbUnitShape.Name = "tbUnitShape";
+      this.tbUnitShape.Size = new System.Drawing.Size(13, 22);
+      this.tbUnitShape.Text = "Select Unit Shape (F3)";
+      // 
+      // toolStrip
+      // 
+      this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.tbPointer,
+            this.tbAddUnit,
+            this.tbUnitShape,
+            this.tbAddObservation,
+            this.tbWaypointType,
+            this.tbTMA,
+            this.tbLine,
+            this.tbCircle,
+            this.tbSetBackground});
+      this.toolStrip.Location = new System.Drawing.Point(0, 24);
+      this.toolStrip.Name = "toolStrip";
+      this.toolStrip.Size = new System.Drawing.Size(792, 25);
+      this.toolStrip.TabIndex = 2;
+      // 
+      // tbPointer
+      // 
+      this.tbPointer.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbPointer.Image = global::Maneubo.Properties.Resources.IconPointer;
+      this.tbPointer.Name = "tbPointer";
+      this.tbPointer.Size = new System.Drawing.Size(23, 22);
+      this.tbPointer.Text = "Pointer (P)";
+      this.tbPointer.Click += new System.EventHandler(this.tbPointer_Click);
+      // 
+      // tbAddUnit
+      // 
+      this.tbAddUnit.Checked = true;
+      this.tbAddUnit.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.tbAddUnit.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbAddUnit.Image = global::Maneubo.Properties.Resources.IconSurface;
+      this.tbAddUnit.Name = "tbAddUnit";
+      this.tbAddUnit.Size = new System.Drawing.Size(23, 22);
+      this.tbAddUnit.Text = "Add Unit (U)";
+      this.tbAddUnit.Click += new System.EventHandler(this.tbAddUnit_Click);
+      // 
+      // tbAddObservation
+      // 
+      this.tbAddObservation.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbAddObservation.Image = global::Maneubo.Properties.Resources.IconObsPoint;
+      this.tbAddObservation.Name = "tbAddObservation";
+      this.tbAddObservation.Size = new System.Drawing.Size(23, 22);
+      this.tbAddObservation.Text = "Add Observation/Waypoint (O)";
+      this.tbAddObservation.Click += new System.EventHandler(this.tbAddObservation_Click);
+      // 
+      // tbWaypointType
+      // 
+      this.tbWaypointType.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbWaypointType.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            miPointObs,
+            miBearingObs,
+            miWaypoint});
+      this.tbWaypointType.Name = "tbWaypointType";
+      this.tbWaypointType.Size = new System.Drawing.Size(13, 22);
+      this.tbWaypointType.Text = "Select Observation/Waypoint Type (F4)";
+      // 
+      // tbTMA
+      // 
+      this.tbTMA.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbTMA.Image = global::Maneubo.Properties.Resources.IconTMA;
+      this.tbTMA.Name = "tbTMA";
+      this.tbTMA.Size = new System.Drawing.Size(23, 22);
+      this.tbTMA.Text = "Target Motion Analysis (T)";
+      this.tbTMA.Click += new System.EventHandler(this.tbTMA_Click);
+      // 
+      // tbLine
+      // 
+      this.tbLine.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbLine.Image = global::Maneubo.Properties.Resources.IconLine;
+      this.tbLine.Name = "tbLine";
+      this.tbLine.Size = new System.Drawing.Size(23, 22);
+      this.tbLine.Text = "Add Line (L)";
+      this.tbLine.Click += new System.EventHandler(this.tbLine_Click);
+      // 
+      // tbCircle
+      // 
+      this.tbCircle.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbCircle.Image = global::Maneubo.Properties.Resources.IconCircle;
+      this.tbCircle.Name = "tbCircle";
+      this.tbCircle.Size = new System.Drawing.Size(23, 22);
+      this.tbCircle.Text = "Add Circle (C)";
+      this.tbCircle.Click += new System.EventHandler(this.tbCircle_Click);
+      // 
+      // tbSetBackground
+      // 
+      this.tbSetBackground.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbSetBackground.Image = global::Maneubo.Properties.Resources.IconBackground;
+      this.tbSetBackground.Name = "tbSetBackground";
+      this.tbSetBackground.Size = new System.Drawing.Size(23, 22);
+      this.tbSetBackground.Text = "Setup Background Image";
+      this.tbSetBackground.Click += new System.EventHandler(this.tbSetBackground_Click);
+      // 
+      // board
+      // 
+      this.board.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(173)))), ((int)(((byte)(216)))), ((int)(((byte)(230)))));
+      this.board.BackgroundImageCenter = ((AdamMil.Mathematics.Geometry.Point2)(resources.GetObject("board.BackgroundImageCenter")));
+      this.board.BackgroundImageScale = 1D;
+      this.board.Cursor = System.Windows.Forms.Cursors.Default;
+      this.board.Dock = System.Windows.Forms.DockStyle.Fill;
+      this.board.Location = new System.Drawing.Point(0, 49);
+      this.board.Name = "board";
+      this.board.ReferenceShape = null;
+      this.board.SelectedShape = null;
+      this.board.Size = new System.Drawing.Size(792, 668);
+      this.board.TabIndex = 0;
+      this.board.UnitSystem = Maneubo.UnitSystem.NauticalMetric;
+      this.board.ZoomFactor = 1D;
+      this.board.StatusTextChanged += new System.EventHandler(this.board_StatusTextChanged);
+      this.board.ToolChanged += new System.EventHandler(this.board_ToolChanged);
+      this.board.BackgroundImageChanged += new System.EventHandler(this.board_BackgroundImageChanged);
+      // 
       // MainForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -475,6 +489,7 @@
       this.Controls.Add(statusStrip);
       this.Controls.Add(this.toolStrip);
       this.Controls.Add(menuStrip);
+      this.KeyPreview = true;
       this.MainMenuStrip = menuStrip;
       this.Name = "MainForm";
       this.Text = "Maneubo - Virtual Maneuvering Board";

@@ -52,6 +52,26 @@ namespace Maneubo
       set { chkLockSpeed.Checked = value; }
     }
 
+    public void FocusCourse()
+    {
+      txtCourse.Focus();
+    }
+
+    public void FocusSpeed()
+    {
+      txtSpeed.Focus();
+    }
+
+    public void ToggleCourseLock()
+    {
+      LockCourse = !LockCourse;
+    }
+
+    public void ToggleSpeedLock()
+    {
+      LockSpeed = !LockSpeed;
+    }
+
     void btnApply_Click(object sender, EventArgs e)
     {
       if(ApplySolution != null) ApplySolution(this, EventArgs.Empty);

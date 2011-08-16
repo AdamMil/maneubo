@@ -26,15 +26,29 @@ namespace Maneubo
       if(!e.Cancel && !TrySaveChanges()) e.Cancel = true;
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+      base.OnKeyDown(e);
+
+      if(!e.Handled && e.Modifiers == Keys.None)
+      {
+        if(e.KeyCode == Keys.P) tbPointer.PerformClick();
+        else if(e.KeyCode == Keys.U) tbAddUnit.PerformClick();
+        else if(e.KeyCode == Keys.O) tbAddObservation.PerformClick();
+        else if(e.KeyCode == Keys.T) tbTMA.PerformClick();
+        else if(e.KeyCode == Keys.L) tbLine.PerformClick();
+        else if(e.KeyCode == Keys.C) tbCircle.PerformClick();
+        else if(e.KeyCode == Keys.F3) tbUnitShape.ShowDropDown();
+        else if(e.KeyCode == Keys.F4) tbWaypointType.ShowDropDown();
+        else return;
+        e.Handled = true;
+      }
+    }
+
     bool CloseBoard()
     {
       if(!TrySaveChanges()) return false;
-      board.SelectedTool = board.PointerTool;
-      board.ReferenceShape = null;
-      board.SelectedShape = null;
-      board.RootShapes.Clear();
-      board.WasChanged = false;
-      board.BackgroundImage = null;
+      board.Clear();
       fileName = null;
       return true;
     }
@@ -57,20 +71,29 @@ namespace Maneubo
 
     void OpenBoard(string fileName)
     {
-      this.fileName = fileName;
-      throw new NotImplementedException();
+      try
+      {
+        board.Load(fileName);
+        this.fileName = fileName;
+      }
+      catch(Exception ex)
+      {
+        MessageBox.Show("An error occurred while loading " + fileName + ". (" + ex.Message + ")", "Load failed",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
     }
 
     void NewBoard()
     {
       if(CloseBoard())
       {
-        UnitShape ownShip = new UnitShape() { Name="Own ship" };
+        UnitShape ownShip = new UnitShape() { Name = "Own ship", Type = UnitShapeType.OwnShip };
         board.Center     = AdamMil.Mathematics.Geometry.Point2.Empty;
         board.ZoomFactor = 1.0/32;
         board.RootShapes.Add(ownShip);
         board.ReferenceShape = ownShip;
         board.SelectedShape  = ownShip;
+        board.WasChanged     = false;
       }
     }
 
@@ -81,8 +104,18 @@ namespace Maneubo
 
     bool SaveBoard(string fileName)
     {
-      this.fileName = fileName;
-      throw new NotImplementedException();
+      try
+      {
+        board.Save(fileName);
+        this.fileName = fileName;
+        return true;
+      }
+      catch(Exception ex)
+      {
+        MessageBox.Show("An error occurred while save " + fileName + ". (" + ex.Message + ")", "Save failed",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
+      return false;
     }
 
     bool SaveBoardAs()
@@ -144,10 +177,17 @@ namespace Maneubo
       else if(board.SelectedTool == board.AddUnitTool) toolBarButton = tbAddUnit;
       else if(board.SelectedTool == board.AddObservationTool) toolBarButton = tbAddObservation;
       else if(board.SelectedTool == board.TMATool) toolBarButton = tbTMA;
+      else if(board.SelectedTool == board.AddLineTool) toolBarButton = tbLine;
+      else if(board.SelectedTool == board.AddCircleTool) toolBarButton = tbCircle;
       else if(board.SelectedTool == board.SetupBackgroundTool) toolBarButton = tbSetBackground;
       else throw new NotImplementedException();
 
       foreach(ToolStripButton button in toolStrip.Items.OfType<ToolStripButton>()) button.Checked = button == toolBarButton;
+    }
+
+    void miAbout_Click(object sender, EventArgs e)
+    {
+      new AboutBox().ShowDialog();
     }
 
     void miBackgroundImage_Click(object sender, EventArgs e)
@@ -157,8 +197,10 @@ namespace Maneubo
 
     void miContactShape_Click(object sender, EventArgs e)
     {
-      tbAddUnit.Image = ((ToolStripMenuItem)sender).Image;
+      ToolStripMenuItem menuItem = (ToolStripMenuItem)sender;
+      tbAddUnit.Image = menuItem.Image;
       foreach(ToolStripMenuItem item in tbUnitShape.DropDownItems) item.Checked = item == sender;
+      board.AddUnitTool.Type = (UnitShapeType)menuItem.Tag;
       tbAddUnit.PerformClick();
     }
 
@@ -204,6 +246,16 @@ namespace Maneubo
     void tbAddUnit_Click(object sender, EventArgs e)
     {
       board.SelectedTool = board.AddUnitTool;
+    }
+
+    void tbCircle_Click(object sender, EventArgs e)
+    {
+      board.SelectedTool = board.AddCircleTool;
+    }
+
+    void tbLine_Click(object sender, EventArgs e)
+    {
+      board.SelectedTool = board.AddLineTool;
     }
 
     void tbPointer_Click(object sender, EventArgs e)

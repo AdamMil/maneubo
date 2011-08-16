@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using AdamMil.Mathematics.Geometry;
-using System.Globalization;
 using AdamMil.Utilities;
 
 namespace Maneubo
@@ -32,6 +30,7 @@ namespace Maneubo
         txtDirection.Text = (unit.Direction * MathConst.RadiansToDegrees).ToString("0.##");
         txtSpeed.Tag      = unit.Speed;
         txtSpeed.Text     = ManeuveringBoard.GetSpeedString(unit.Speed, unitSystem);
+        cmbType.SelectedIndex = (int)unit.Type;
 
         if(unit.Parent == null) chkRelative.Enabled = false;
         else chkRelative.Checked = unit.IsMotionRelative;
@@ -40,6 +39,7 @@ namespace Maneubo
       {
         txtSpeed.Enabled    = false;
         chkRelative.Enabled = false;
+        cmbType.Enabled     = false;
 
         LineShape line = shape as LineShape;
         if(line != null)
@@ -120,6 +120,11 @@ namespace Maneubo
         else TryParseSpeed(txtSpeed.Text, unitSystem, out speed);
         return speed;
       }
+    }
+
+    public UnitShapeType UnitType
+    {
+      get { return (UnitShapeType)cmbType.SelectedIndex; }
     }
 
     void btnOK_Click(object sender, EventArgs e)

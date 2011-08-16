@@ -29,6 +29,7 @@
     private void InitializeComponent()
     {
       System.Windows.Forms.GroupBox grpUnit;
+      System.Windows.Forms.Label lblType;
       System.Windows.Forms.Label lblSpeed;
       System.Windows.Forms.Label lblDegrees;
       System.Windows.Forms.GroupBox grpShape;
@@ -36,6 +37,7 @@
       System.Windows.Forms.Label lblName;
       System.Windows.Forms.Button btnCancel;
       System.Windows.Forms.Button btnOK;
+      this.cmbType = new System.Windows.Forms.ComboBox();
       this.chkRelative = new System.Windows.Forms.CheckBox();
       this.txtSpeed = new System.Windows.Forms.TextBox();
       this.txtDirection = new System.Windows.Forms.TextBox();
@@ -45,6 +47,7 @@
       this.lblSize = new System.Windows.Forms.Label();
       this.txtName = new System.Windows.Forms.TextBox();
       grpUnit = new System.Windows.Forms.GroupBox();
+      lblType = new System.Windows.Forms.Label();
       lblSpeed = new System.Windows.Forms.Label();
       lblDegrees = new System.Windows.Forms.Label();
       grpShape = new System.Windows.Forms.GroupBox();
@@ -61,6 +64,8 @@
       grpUnit.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      grpUnit.Controls.Add(lblType);
+      grpUnit.Controls.Add(this.cmbType);
       grpUnit.Controls.Add(this.chkRelative);
       grpUnit.Controls.Add(this.txtSpeed);
       grpUnit.Controls.Add(lblSpeed);
@@ -69,19 +74,46 @@
       grpUnit.Controls.Add(this.lblDirection);
       grpUnit.Location = new System.Drawing.Point(12, 112);
       grpUnit.Name = "grpUnit";
-      grpUnit.Size = new System.Drawing.Size(196, 93);
+      grpUnit.Size = new System.Drawing.Size(196, 120);
       grpUnit.TabIndex = 1;
       grpUnit.TabStop = false;
       grpUnit.Text = "Unit Data";
       // 
+      // lblType
+      // 
+      lblType.AutoSize = true;
+      lblType.Location = new System.Drawing.Point(8, 72);
+      lblType.Name = "lblType";
+      lblType.Size = new System.Drawing.Size(31, 13);
+      lblType.TabIndex = 8;
+      lblType.Text = "&Type";
+      lblType.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+      // 
+      // cmbType
+      // 
+      this.cmbType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+      this.cmbType.Items.AddRange(new object[] {
+            "Air",
+            "Boat",
+            "Helicopter",
+            "Own ship",
+            "Subsurface",
+            "Surface",
+            "Unknown",
+            "Weapon"});
+      this.cmbType.Location = new System.Drawing.Point(63, 68);
+      this.cmbType.Name = "cmbType";
+      this.cmbType.Size = new System.Drawing.Size(122, 21);
+      this.cmbType.TabIndex = 9;
+      // 
       // chkRelative
       // 
       this.chkRelative.AutoSize = true;
-      this.chkRelative.Location = new System.Drawing.Point(11, 68);
+      this.chkRelative.Location = new System.Drawing.Point(11, 95);
       this.chkRelative.Name = "chkRelative";
       this.chkRelative.Size = new System.Drawing.Size(155, 17);
       this.chkRelative.TabIndex = 10;
-      this.chkRelative.Text = "Velocity is relative to parent";
+      this.chkRelative.Text = "Velocity is &relative to parent";
       this.chkRelative.UseVisualStyleBackColor = true;
       // 
       // txtSpeed
@@ -99,7 +131,7 @@
       lblSpeed.Name = "lblSpeed";
       lblSpeed.Size = new System.Drawing.Size(38, 13);
       lblSpeed.TabIndex = 6;
-      lblSpeed.Text = "Speed";
+      lblSpeed.Text = "&Speed";
       lblSpeed.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // lblDegrees
@@ -127,7 +159,7 @@
       this.lblDirection.Name = "lblDirection";
       this.lblDirection.Size = new System.Drawing.Size(49, 13);
       this.lblDirection.TabIndex = 1;
-      this.lblDirection.Text = "Direction";
+      this.lblDirection.Text = "&Direction";
       this.lblDirection.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // grpShape
@@ -198,28 +230,28 @@
       lblName.Name = "lblName";
       lblName.Size = new System.Drawing.Size(35, 13);
       lblName.TabIndex = 0;
-      lblName.Text = "Name";
+      lblName.Text = "&Name";
       lblName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // btnCancel
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(132, 212);
+      btnCancel.Location = new System.Drawing.Point(132, 238);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 3;
-      btnCancel.Text = "Cancel";
+      btnCancel.Text = "&Cancel";
       btnCancel.UseVisualStyleBackColor = true;
       // 
       // btnOK
       // 
       btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      btnOK.Location = new System.Drawing.Point(51, 212);
+      btnOK.Location = new System.Drawing.Point(51, 238);
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 2;
-      btnOK.Text = "OK";
+      btnOK.Text = "&OK";
       btnOK.UseVisualStyleBackColor = true;
       btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
@@ -229,7 +261,7 @@
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(220, 241);
+      this.ClientSize = new System.Drawing.Size(220, 267);
       this.Controls.Add(btnOK);
       this.Controls.Add(btnCancel);
       this.Controls.Add(grpShape);
@@ -260,6 +292,7 @@
     private System.Windows.Forms.TextBox txtSpeed;
     private System.Windows.Forms.Label lblDirection;
     private System.Windows.Forms.Label lblSize;
+    private System.Windows.Forms.ComboBox cmbType;
 
   }
 }

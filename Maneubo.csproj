@@ -37,8 +37,15 @@
     <Reference Include="System" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.XML" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AboutBox.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AboutBox.designer.cs">
+      <DependentUpon>AboutBox.cs</DependentUpon>
+    </Compile>
     <Compile Include="BackgroundImageForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -89,6 +96,7 @@
     <Compile Include="ShapeDataForm.Designer.cs">
       <DependentUpon>ShapeDataForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Shapes.cs" />
     <Compile Include="TMAForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -97,6 +105,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="AboutBox.resx">
+      <DependentUpon>AboutBox.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="BackgroundImageForm.resx">
       <DependentUpon>BackgroundImageForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -122,6 +133,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\about.png" />
     <Content Include="Resources\icon_air.png" />
     <None Include="Resources\icon_boat.png" />
     <Content Include="Resources\icon_bgimage.png" />
@@ -139,6 +151,9 @@
     <None Include="Resources\icon_line.png" />
     <None Include="Resources\icon_circle.png" />
     <Content Include="Resources\icon_os.png" />
+    <None Include="Resources\moboard.xsd">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AdamMil.net\Collections\AdamMil.Collections.csproj">
