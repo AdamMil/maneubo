@@ -102,9 +102,23 @@ namespace Maneubo.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap IconLand {
+            get {
+                object obj = ResourceManager.GetObject("IconLand", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
         internal static System.Drawing.Bitmap IconLine {
             get {
                 object obj = ResourceManager.GetObject("IconLine", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap IconMap {
+            get {
+                object obj = ResourceManager.GetObject("IconMap", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

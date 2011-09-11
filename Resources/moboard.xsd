@@ -2,6 +2,18 @@
 <xs:schema id="moboard" targetNamespace="http://www.adammil.net/Maneubo/moboard"
            xmlns="http://www.adammil.net/Maneubo/moboard" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
+  <xs:simpleType name="color">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="#[0-9A-Fa-f]{6}" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="projectionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="azimuthalEquidistant" />
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="nonNegativeDouble">
     <xs:restriction base="xs:double">
       <xs:minInclusive value="0" />
@@ -20,11 +32,21 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:simpleType name="unitSystem">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="nauticalMetric" />
+      <xs:enumeration value="nauticalImperial" />
+      <xs:enumeration value="terrestrialMetric" />
+      <xs:enumeration value="terrestrialImperial" />
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="unitType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="air" />
       <xs:enumeration value="boat" />
       <xs:enumeration value="helicopter" />
+      <xs:enumeration value="land" />
       <xs:enumeration value="ownShip" />
       <xs:enumeration value="subsurface" />
       <xs:enumeration value="surface" />
@@ -55,6 +77,12 @@
   <xs:complexType name="line">
     <xs:attribute name="start" type="vector" use="required" />
     <xs:attribute name="end" type="vector" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="mapProjection">
+    <xs:attribute name="lonLat" type="vector" use="required" />
+    <xs:attribute name="mapPoint" type="vector" use="required" />
+    <xs:attribute name="type" type="projectionType" use="required" />
   </xs:complexType>
 
   <xs:complexType name="posData" abstract="true">
@@ -141,11 +169,22 @@
   <xs:element name="moboard">
     <xs:complexType>
       <xs:sequence>
+        <xs:element name="projection" type="mapProjection" minOccurs="0" />
         <xs:element name="shapes" type="shapes" minOccurs="0" />
         <xs:element name="view" type="view" minOccurs="0" />
         <xs:element name="bgImage" type="bgImage" minOccurs="0" />
       </xs:sequence>
-      
+
+      <xs:attribute name="backgroundColor" type="color" default="#add8e6" />
+      <xs:attribute name="observationColor" type="color" default="#808080" />
+      <xs:attribute name="referenceColor" type="color" default="#ff0000" />
+      <xs:attribute name="scaleColor1" type="color" default="#000000" />
+      <xs:attribute name="scaleColor2" type="color" default="#ffffff" />
+      <xs:attribute name="selectedColor" type="color" default="#0000ff" />
+      <xs:attribute name="tmaColor" type="color" default="#006400" />
+      <xs:attribute name="unselectedColor" type="color" default="#000000" />
+      <xs:attribute name="showAllObservations" type="xs:boolean" />
+      <xs:attribute name="unitSystem" type="unitSystem" default="nauticalMetric" />
       <xs:attribute name="version" type="xs:positiveInteger" use="required" />
     </xs:complexType>
   </xs:element>

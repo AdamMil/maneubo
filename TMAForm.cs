@@ -1,6 +1,6 @@
 ﻿using System;
-using AdamMil.Mathematics.Geometry;
 using System.ComponentModel;
+using AdamMil.Mathematics.Geometry;
 
 namespace Maneubo
 {

@@ -419,7 +419,7 @@ namespace Maneubo
   #region UnitShapeType
   enum UnitShapeType
   {
-    Air, Boat, Helicopter, OwnShip, Subsurface, Surface, Unknown, Weapon
+    Air, Boat, Helicopter, Land, OwnShip, Subsurface, Surface, Unknown, Weapon
   }
   #endregion
 
@@ -527,7 +527,7 @@ namespace Maneubo
       if(distance <= 6) return new KeyValuePair<double,Handle>(distance, null);
 
       // if we're drawing a motion vector and the vector is not controlled by waypoints, allow the user to grab that, too
-      if((Board.SelectedTool != Board.TMATool || Board.SelectedShape != this) && Speed > 0 && !Children.Any(c => c is Waypoint))
+      if(ShouldDrawMotionVector && Speed > 0 && !Children.Any(c => c is Waypoint))
       {
         Vector2 vector = new Vector2(0, Speed*ManeuveringBoard.VectorTime).Rotated(-Direction);
         // use two pixels before the endpoint as the hotspot, since that's closer to the center of mass of the arrow head
@@ -544,16 +544,13 @@ namespace Maneubo
       float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
 
       // don't draw the velocity vector if we're using the TMA tool for this shape, since they often coincide
-      if(Board.SelectedTool != Board.TMATool || Board.SelectedShape != this)
+      Vector2 velocity = GetEffectiveVelocity();
+      if(ShouldDrawMotionVector && velocity.LengthSqr > 0)
       {
         // if the unit has a speed, draw the velocity vector. the vector will be drawn with a length equal to the distance traveled in
         // six minutes
-        Vector2 velocity = GetEffectiveVelocity();
-        if(velocity.LengthSqr > 0)
-        {
-          velocity = new Vector2(velocity.X, -velocity.Y) * scale * ManeuveringBoard.VectorTime;
-          graphics.DrawArrow(Pen, x, y, x+(float)velocity.X, y+(float)velocity.Y);
-        }
+        velocity = new Vector2(velocity.X, -velocity.Y) * scale * ManeuveringBoard.VectorTime;
+        graphics.DrawArrow(Pen, x, y, x+(float)velocity.X, y+(float)velocity.Y);
       }
 
       switch(Type)
@@ -568,8 +565,13 @@ namespace Maneubo
         case UnitShapeType.Boat:
         {
           var oldMatrix = graphics.Transform;
+
+          double angle = velocity.Angle;
+          if(double.IsNaN(angle)) angle = 0;
+          else angle += Math.PI/2;
+
           graphics.TranslateTransform(x, y);
-          graphics.RotateTransform((float)(Direction * MathConst.RadiansToDegrees));
+          graphics.RotateTransform((float)(angle * MathConst.RadiansToDegrees));
           graphics.TranslateTransform(-x, -y);
 
           graphics.DrawLine(Pen, x-5, y-2, x-5, y+7);
@@ -579,6 +581,7 @@ namespace Maneubo
           graphics.DrawLine(Pen, x,   y-7, x-5, y-2);
 
           graphics.Transform = oldMatrix;
+          RenderName(graphics, x, y+9);
           break;
         }
         case UnitShapeType.Helicopter:
@@ -587,6 +590,11 @@ namespace Maneubo
           graphics.DrawLine(Pen, x+6, y, x+6, y+6);
           graphics.DrawLine(Pen, x, y-6, x, y+5);
           graphics.DrawLine(Pen, x-3, y-6, x+3, y-6);
+          RenderName(graphics, x, y+8);
+          break;
+        case UnitShapeType.Land:
+          graphics.DrawLine(Pen, x-6, y-6, x+6, y+6);
+          graphics.DrawLine(Pen, x+6, y-6, x-6, y+6);
           RenderName(graphics, x, y+8);
           break;
         case UnitShapeType.OwnShip:
@@ -760,6 +768,16 @@ namespace Maneubo
     }
     #endregion
 
+    bool ShouldDrawMotionVector
+    {
+      get
+      {
+        Shape selected = Board.SelectedShape;
+        return Board.SelectedTool != Board.TMATool ||
+               selected != this && (selected == null || selected.Parent != this || !(selected is Observation));
+      }
+    }
+
     Waypoint GetApplicableWaypoint(TimeSpan time, out Waypoint previousWaypoint)
     {
       Waypoint applicableWaypoint = null, previous = null;
@@ -844,6 +862,15 @@ namespace Maneubo
       get { return this == Board.SelectedShape ? Board.selectedObservationPen : Board.observationPen; }
     }
 
+    protected bool ShouldRender
+    {
+      get
+      {
+        return Board.ShowAllObservations ||
+               Board.SelectedShape != null && (Board.SelectedShape == Parent || Board.SelectedShape.Parent == Parent);
+      }
+    }
+
     protected internal override void Save(XmlWriter writer)
     {
       writer.WriteAttributeString("observer", Observer.GetXmlId());
@@ -863,6 +890,11 @@ namespace Maneubo
       set { Bearing = ManeuveringBoard.AngleBetween(GetEffectiveObserverPosition(), value); }
     }
 
+    public Vector2 Vector
+    {
+      get { return new Vector2(0, 1).Rotated(-Bearing); }
+    }
+
     public BoardPoint GetEffectiveObserverPosition()
     {
       return Observer.GetPositionAt(Time);
@@ -875,55 +907,66 @@ namespace Maneubo
 
     public override KeyValuePair<double,Handle> GetSelectionDistance(SysPoint point)
     {
-      BoardPoint boardPoint = Board.GetBoardPoint(point);
-      BoardPoint observerPosition = GetEffectiveObserverPosition();
-      Line2 bearingLine = new Line2(observerPosition, new Vector2(0, 1).Rotated(-Bearing));
-      double distance = Math.Abs(bearingLine.DistanceTo(boardPoint)) * Board.ZoomFactor;
-
-      // the distance measurement considers the entire infinite line, but we only want to consider the ray starting from the observer, so
-      // we'll ignore the portion of the line on the other side of the observer point
-      if(distance > 4 || bearingLine.ClosestPointOnSegment(boardPoint) == bearingLine.Start &&
-         boardPoint.DistanceTo(bearingLine.Start)*Board.ZoomFactor > 4)
+      double distance;
+      if(!ShouldRender)
       {
         distance = double.NaN;
       }
-      return new KeyValuePair<double,Handle>(distance, null);
+      else
+      {
+        BoardPoint boardPoint = Board.GetBoardPoint(point);
+        BoardPoint observerPosition = GetEffectiveObserverPosition();
+        Line2 bearingLine = new Line2(observerPosition, new Vector2(0, 1).Rotated(-Bearing));
+        distance = Math.Abs(bearingLine.DistanceTo(boardPoint)) * Board.ZoomFactor;
+
+        // the distance measurement considers the entire infinite line, but we only want to consider the ray starting from the observer, so
+        // we'll ignore the portion of the line on the other side of the observer point
+        if(distance > 4 || bearingLine.ClosestPointOnSegment(boardPoint) == bearingLine.Start &&
+           boardPoint.DistanceTo(bearingLine.Start)*Board.ZoomFactor > 4)
+        {
+          distance = double.NaN;
+        }
+      }
+      return new KeyValuePair<double, Handle>(distance, null);
     }
 
     public override void Render(Graphics graphics)
     {
-      BoardPoint observerPosition = GetEffectiveObserverPosition();
-      observerPosition = new BoardPoint(observerPosition.X*Board.ZoomFactor, -observerPosition.Y*Board.ZoomFactor);
-      Vector2 screenVector = new Vector2(0, -1).Rotated(Bearing);
-      Line2 bearingLine = new Line2(observerPosition, screenVector);
-
-      // since the bearing line is infinitely long, we'll test the intersection of the line against all four sides of the clipping
-      // rectangle, and draw the line to the furthest intersection
-      BoardRect clipRect = new BoardRect(graphics.VisibleClipBounds);
-      BoardPoint endPoint = BoardPoint.Invalid;
-      double maxDistance = 0;
-      for(int i=0; i<4; i++)
+      if(ShouldRender)
       {
-        Line2 edge = clipRect.GetEdge(i);
-        LineIntersection intersection = bearingLine.GetIntersectionInfo(edge);
-        if(intersection.OnSecond)
+        BoardPoint observerPosition = GetEffectiveObserverPosition();
+        observerPosition = new BoardPoint(observerPosition.X*Board.ZoomFactor, -observerPosition.Y*Board.ZoomFactor);
+        Vector2 screenVector = new Vector2(0, -1).Rotated(Bearing);
+        Line2 bearingLine = new Line2(observerPosition, screenVector);
+
+        // since the bearing line is infinitely long, we'll test the intersection of the line against all four sides of the clipping
+        // rectangle, and draw the line to the furthest intersection
+        BoardRect clipRect = new BoardRect(graphics.VisibleClipBounds);
+        BoardPoint endPoint = BoardPoint.Invalid;
+        double maxDistance = 0;
+        for(int i=0; i<4; i++)
         {
-          double distance = observerPosition.DistanceTo(intersection.Point);
-          // find the closest point on the segment to ensure that we're only considering intersections in the forward direction of the
-          // vector
-          if(distance > maxDistance && bearingLine.ClosestPointOnSegment(intersection.Point) != bearingLine.Start)
+          Line2 edge = clipRect.GetEdge(i);
+          LineIntersection intersection = bearingLine.GetIntersectionInfo(edge);
+          if(intersection.OnSecond)
           {
-            endPoint    = intersection.Point;
-            maxDistance = distance;
+            double distance = observerPosition.DistanceTo(intersection.Point);
+            // find the closest point on the segment to ensure that we're only considering intersections in the forward direction of the
+            // vector
+            if(distance > maxDistance && bearingLine.ClosestPointOnSegment(intersection.Point) != bearingLine.Start)
+            {
+              endPoint    = intersection.Point;
+              maxDistance = distance;
+            }
           }
         }
-      }
 
-      if(endPoint.IsValid)
-      {
-        graphics.DrawLine(Pen, observerPosition.ToPointF(), endPoint.ToPointF());
-        graphics.DrawCircle(Pen, observerPosition.ToPointF(), 3);
-        RenderTime(graphics, (observerPosition + (endPoint - observerPosition)*0.5).ToPointF());
+        if(endPoint.IsValid)
+        {
+          graphics.DrawLine(Pen, observerPosition.ToPointF(), endPoint.ToPointF());
+          graphics.DrawCircle(Pen, observerPosition.ToPointF(), 3);
+          RenderTime(graphics, (observerPosition + (endPoint - observerPosition)*0.5).ToPointF());
+        }
       }
     }
 
@@ -953,23 +996,26 @@ namespace Maneubo
 
     public override KeyValuePair<double,Handle> GetSelectionDistance(SysPoint point)
     {
-      double distance = Board.GetBoardPoint(point).DistanceTo(Position) * Board.ZoomFactor;
+      double distance = ShouldRender ? Board.GetBoardPoint(point).DistanceTo(Position) * Board.ZoomFactor : double.NaN;
       return new KeyValuePair<double,Handle>(distance <= 6 ? distance : double.NaN, null);
     }
 
     public override void Render(Graphics graphics)
     {
-      float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
+      if(ShouldRender)
+      {
+        float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
 
-      // TODO: only draw a line back to the parent unit if the parent unit is functioning as a first observation
-      int index = Parent.Children.IndexOf(this) - 1;
-      PointObservation previousObservation = index >= 0 ? Parent.Children[index] as PointObservation : null;
-      Shape previousShape = previousObservation != null && previousObservation.Observer == Observer ? previousObservation : Parent;
-      float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
-      graphics.DrawArrow(Board.observationPen, prevX, prevY, x, y);
+        // TODO: only draw a line back to the parent unit if the parent unit is functioning as a first observation
+        int index = Parent.Children.IndexOf(this) - 1;
+        PointObservation previousObservation = index >= 0 ? Parent.Children[index] as PointObservation : null;
+        Shape previousShape = previousObservation != null && previousObservation.Observer == Observer ? previousObservation : Parent;
+        float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
+        graphics.DrawArrow(Board.observationPen, prevX, prevY, x, y);
 
-      graphics.DrawCircle(Pen, x, y, 6);
-      RenderTime(graphics, x, y+8);
+        graphics.DrawCircle(Pen, x, y, 6);
+        RenderTime(graphics, x, y+8);
+      }
     }
 
     public static PointObservation Load(XmlReader reader, Dictionary<Observation,string> observers)
@@ -994,6 +1040,11 @@ namespace Maneubo
   #region Waypoint
   sealed class Waypoint : PositionalDataShape
   {
+    public Waypoint()
+    {
+      Time = new TimeSpan(0, 1, 0); // waypoints aren't allowed to have zero times because it leads to infinite velocities
+    }
+
     public override BoardPoint Position { get; set; }
 
     public override KeyValuePair<double,Handle> GetSelectionDistance(SysPoint point)
@@ -1004,18 +1055,21 @@ namespace Maneubo
 
     public override void Render(Graphics graphics)
     {
-      float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
+      if(ShouldRender)
+      {
+        float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
 
-      int index = Parent.Children.IndexOf(this) - 1;
-      Waypoint previousWaypoint = index >= 0 ? Parent.Children[index] as Waypoint : null;
-      Shape previousShape = previousWaypoint != null ? previousWaypoint : Parent;
-      float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
-      graphics.DrawArrow(Pen, prevX, prevY, x, y);
+        int index = Parent.Children.IndexOf(this) - 1;
+        Waypoint previousWaypoint = index >= 0 ? Parent.Children[index] as Waypoint : null;
+        Shape previousShape = previousWaypoint != null ? previousWaypoint : Parent;
+        float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
+        graphics.DrawArrow(Pen, prevX, prevY, x, y);
 
-      graphics.DrawRectangle(Pen, x-6, y-6, 12, 12);
-      graphics.DrawLine(Pen, x, y-6, x, y+6);
-      graphics.DrawLine(Pen, x-6, y, x+6, y);
-      RenderTime(graphics, x, y+8);
+        graphics.DrawRectangle(Pen, x-6, y-6, 12, 12);
+        graphics.DrawLine(Pen, x, y-6, x, y+6);
+        graphics.DrawLine(Pen, x-6, y, x+6, y);
+        RenderTime(graphics, x, y+8);
+      }
     }
 
     public static Waypoint Load(XmlReader reader)
@@ -1032,6 +1086,16 @@ namespace Maneubo
       writer.WriteAttributeString("position", ManeuveringBoard.FormatXmlVector(Position));
       base.Save(writer);
       writer.WriteEndElement();
+    }
+
+    bool ShouldRender
+    {
+      get
+      {
+        return Board.ShowAllObservations ||
+               Board.ReferenceShape != null && Board.ReferenceShape == Parent ||
+               Board.SelectedShape != null && (Board.SelectedShape == Parent || Board.SelectedShape.Parent == Parent);
+      }
     }
   }
   #endregion

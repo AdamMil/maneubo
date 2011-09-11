@@ -67,6 +67,8 @@ namespace Maneubo
 
         if(previousPosition == null) grpPrevious.Enabled = false;
         else FillRelativeTo(previousPosition, txtPreviousBearing, txtPreviousDistance, out previousPoint);
+
+        waypoint = posData is Waypoint;
       }
     }
 
@@ -210,6 +212,11 @@ namespace Maneubo
         }
         return;
       }
+      else if(waypoint && time.TotalSeconds < 1)
+      {
+        MessageBox.Show("A waypoint's time must not be equal to zero.", "Invalid time", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        return;
+      }
 
       DialogResult = DialogResult.OK;
     }
@@ -228,7 +235,7 @@ namespace Maneubo
     {
       if((txtObserverBearing.WasChanged || txtObserverDistance.WasChanged) && posDataPoint.HasValue)
       {
-        UpdateObservationPoint(txtObserverBearing, txtObserverDistance, observerPoint,
+        UpdateObservationPoint(txtObserverBearing, txtObserverDistance, observerPoint.Value,
                                 txtObservedBearing, txtObservedDistance, observedPoint,
                                 txtPreviousBearing, txtPreviousDistance, previousPoint);
       }
@@ -236,7 +243,7 @@ namespace Maneubo
 
     void txtObserved_Leave(object sender, EventArgs e)
     {
-      if(txtObserverBearing.WasChanged || txtObserverDistance.WasChanged)
+      if(txtObservedBearing.WasChanged || txtObservedDistance.WasChanged)
       {
         UpdateObservationPoint(txtObservedBearing, txtObservedDistance, observedPoint,
                                txtObserverBearing, txtObserverDistance, observerPoint,
@@ -244,10 +251,11 @@ namespace Maneubo
       }
     }
 
-    readonly Point2 observedPoint, observerPoint;
-    readonly Point2? previousPoint;
+    readonly Point2 observedPoint;
+    readonly Point2? observerPoint, previousPoint;
     readonly TimeSpan? previousTime;
     readonly UnitSystem unitSystem;
+    readonly bool waypoint;
 
     Point2? posDataPoint;
 

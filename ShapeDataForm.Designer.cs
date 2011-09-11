@@ -96,6 +96,7 @@
             "Air",
             "Boat",
             "Helicopter",
+            "Land",
             "Own ship",
             "Subsurface",
             "Surface",

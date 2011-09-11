@@ -38,14 +38,17 @@
       System.Windows.Forms.ToolStripMenuItem miExit;
       System.Windows.Forms.ToolStripMenuItem menuEdit;
       System.Windows.Forms.ToolStripMenuItem miBackgroundImage;
+      System.Windows.Forms.ToolStripSeparator menuSep2;
       System.Windows.Forms.ToolStripMenuItem menuTools;
-      System.Windows.Forms.ToolStripMenuItem miOptions;
+      System.Windows.Forms.ToolStripMenuItem miStopwatch;
+      System.Windows.Forms.ToolStripMenuItem miProgramOptions;
       System.Windows.Forms.ToolStripMenuItem menuHelp;
       System.Windows.Forms.ToolStripMenuItem miAbout;
       System.Windows.Forms.StatusStrip statusStrip;
       System.Windows.Forms.ToolStripMenuItem miAirContact;
       System.Windows.Forms.ToolStripMenuItem miBoatShape;
       System.Windows.Forms.ToolStripMenuItem miHelicopterContact;
+      System.Windows.Forms.ToolStripMenuItem miLandContact;
       System.Windows.Forms.ToolStripMenuItem miOwnShip;
       System.Windows.Forms.ToolStripMenuItem miSubsurfaceContact;
       System.Windows.Forms.ToolStripMenuItem miSurfaceContact;
@@ -54,8 +57,8 @@
       System.Windows.Forms.ToolStripMenuItem miPointObs;
       System.Windows.Forms.ToolStripMenuItem miBearingObs;
       System.Windows.Forms.ToolStripMenuItem miWaypoint;
-      System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
       this.miRemoveBackground = new System.Windows.Forms.ToolStripMenuItem();
+      this.miBoardOptions = new System.Windows.Forms.ToolStripMenuItem();
       this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
       this.lblToolStatus = new System.Windows.Forms.ToolStripStatusLabel();
       this.tbUnitShape = new System.Windows.Forms.ToolStripDropDownButton();
@@ -68,6 +71,7 @@
       this.tbLine = new System.Windows.Forms.ToolStripButton();
       this.tbCircle = new System.Windows.Forms.ToolStripButton();
       this.tbSetBackground = new System.Windows.Forms.ToolStripButton();
+      this.tbSetProjection = new System.Windows.Forms.ToolStripButton();
       this.board = new Maneubo.ManeuveringBoard();
       menuStrip = new System.Windows.Forms.MenuStrip();
       menuFile = new System.Windows.Forms.ToolStripMenuItem();
@@ -79,14 +83,17 @@
       miExit = new System.Windows.Forms.ToolStripMenuItem();
       menuEdit = new System.Windows.Forms.ToolStripMenuItem();
       miBackgroundImage = new System.Windows.Forms.ToolStripMenuItem();
+      menuSep2 = new System.Windows.Forms.ToolStripSeparator();
       menuTools = new System.Windows.Forms.ToolStripMenuItem();
-      miOptions = new System.Windows.Forms.ToolStripMenuItem();
+      miStopwatch = new System.Windows.Forms.ToolStripMenuItem();
+      miProgramOptions = new System.Windows.Forms.ToolStripMenuItem();
       menuHelp = new System.Windows.Forms.ToolStripMenuItem();
       miAbout = new System.Windows.Forms.ToolStripMenuItem();
       statusStrip = new System.Windows.Forms.StatusStrip();
       miAirContact = new System.Windows.Forms.ToolStripMenuItem();
       miBoatShape = new System.Windows.Forms.ToolStripMenuItem();
       miHelicopterContact = new System.Windows.Forms.ToolStripMenuItem();
+      miLandContact = new System.Windows.Forms.ToolStripMenuItem();
       miOwnShip = new System.Windows.Forms.ToolStripMenuItem();
       miSubsurfaceContact = new System.Windows.Forms.ToolStripMenuItem();
       miSurfaceContact = new System.Windows.Forms.ToolStripMenuItem();
@@ -130,7 +137,8 @@
       miNew.Name = "miNew";
       miNew.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.N)));
       miNew.Size = new System.Drawing.Size(193, 22);
-      miNew.Text = "&New...";
+      miNew.Text = "&New";
+      miNew.Click += new System.EventHandler(this.miNew_Click);
       // 
       // miOpen
       // 
@@ -174,7 +182,9 @@
       // 
       menuEdit.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             miBackgroundImage,
-            this.miRemoveBackground});
+            this.miRemoveBackground,
+            menuSep2,
+            this.miBoardOptions});
       menuEdit.Name = "menuEdit";
       menuEdit.Size = new System.Drawing.Size(37, 20);
       menuEdit.Text = "&Edit";
@@ -197,19 +207,41 @@
       this.miRemoveBackground.Text = "&Remove Background Image";
       this.miRemoveBackground.Click += new System.EventHandler(this.miRemoveBackground_Click);
       // 
+      // menuSep2
+      // 
+      menuSep2.Name = "menuSep2";
+      menuSep2.Size = new System.Drawing.Size(270, 6);
+      // 
+      // miBoardOptions
+      // 
+      this.miBoardOptions.Name = "miBoardOptions";
+      this.miBoardOptions.Size = new System.Drawing.Size(273, 22);
+      this.miBoardOptions.Text = "Board &Options...";
+      this.miBoardOptions.Click += new System.EventHandler(this.miBoardOptions_Click);
+      // 
       // menuTools
       // 
       menuTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            miOptions});
+            miStopwatch,
+            miProgramOptions});
       menuTools.Name = "menuTools";
       menuTools.Size = new System.Drawing.Size(44, 20);
       menuTools.Text = "&Tools";
       // 
-      // miOptions
+      // miStopwatch
       // 
-      miOptions.Name = "miOptions";
-      miOptions.Size = new System.Drawing.Size(123, 22);
-      miOptions.Text = "&Options...";
+      miStopwatch.Name = "miStopwatch";
+      miStopwatch.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
+      miStopwatch.Size = new System.Drawing.Size(179, 22);
+      miStopwatch.Text = "&Stopwatch...";
+      miStopwatch.Click += new System.EventHandler(this.miStopwatch_Click);
+      // 
+      // miProgramOptions
+      // 
+      miProgramOptions.Name = "miProgramOptions";
+      miProgramOptions.Size = new System.Drawing.Size(179, 22);
+      miProgramOptions.Text = "Program &Options...";
+      miProgramOptions.Click += new System.EventHandler(this.miProgramOptions_Click);
       // 
       // menuHelp
       // 
@@ -222,7 +254,7 @@
       // miAbout
       // 
       miAbout.Name = "miAbout";
-      miAbout.Size = new System.Drawing.Size(152, 22);
+      miAbout.Size = new System.Drawing.Size(115, 22);
       miAbout.Text = "&About...";
       miAbout.Click += new System.EventHandler(this.miAbout_Click);
       // 
@@ -275,6 +307,15 @@
       miHelicopterContact.Tag = Maneubo.UnitShapeType.Helicopter;
       miHelicopterContact.Text = "&Helicopter";
       miHelicopterContact.Click += new System.EventHandler(this.miContactShape_Click);
+      // 
+      // miLandContact
+      // 
+      miLandContact.Image = global::Maneubo.Properties.Resources.IconLand;
+      miLandContact.Name = "miLandContact";
+      miLandContact.Size = new System.Drawing.Size(128, 22);
+      miLandContact.Tag = Maneubo.UnitShapeType.Land;
+      miLandContact.Text = "&Land";
+      miLandContact.Click += new System.EventHandler(this.miContactShape_Click);
       // 
       // miOwnShip
       // 
@@ -359,6 +400,7 @@
             miAirContact,
             miBoatShape,
             miHelicopterContact,
+            miLandContact,
             miOwnShip,
             miSubsurfaceContact,
             miSurfaceContact,
@@ -379,7 +421,8 @@
             this.tbTMA,
             this.tbLine,
             this.tbCircle,
-            this.tbSetBackground});
+            this.tbSetBackground,
+            this.tbSetProjection});
       this.toolStrip.Location = new System.Drawing.Point(0, 24);
       this.toolStrip.Name = "toolStrip";
       this.toolStrip.Size = new System.Drawing.Size(792, 25);
@@ -408,6 +451,7 @@
       // tbAddObservation
       // 
       this.tbAddObservation.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbAddObservation.Enabled = false;
       this.tbAddObservation.Image = global::Maneubo.Properties.Resources.IconObsPoint;
       this.tbAddObservation.Name = "tbAddObservation";
       this.tbAddObservation.Size = new System.Drawing.Size(23, 22);
@@ -461,21 +505,25 @@
       this.tbSetBackground.Text = "Setup Background Image";
       this.tbSetBackground.Click += new System.EventHandler(this.tbSetBackground_Click);
       // 
+      // tbSetProjection
+      // 
+      this.tbSetProjection.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbSetProjection.Image = global::Maneubo.Properties.Resources.IconMap;
+      this.tbSetProjection.Name = "tbSetProjection";
+      this.tbSetProjection.Size = new System.Drawing.Size(23, 22);
+      this.tbSetProjection.Text = "Setup Map Projection";
+      this.tbSetProjection.Click += new System.EventHandler(this.tbSetProjection_Click);
+      // 
       // board
       // 
       this.board.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(173)))), ((int)(((byte)(216)))), ((int)(((byte)(230)))));
-      this.board.BackgroundImageCenter = ((AdamMil.Mathematics.Geometry.Point2)(resources.GetObject("board.BackgroundImageCenter")));
-      this.board.BackgroundImageScale = 1D;
       this.board.Cursor = System.Windows.Forms.Cursors.Default;
       this.board.Dock = System.Windows.Forms.DockStyle.Fill;
       this.board.Location = new System.Drawing.Point(0, 49);
       this.board.Name = "board";
-      this.board.ReferenceShape = null;
-      this.board.SelectedShape = null;
       this.board.Size = new System.Drawing.Size(792, 668);
       this.board.TabIndex = 0;
-      this.board.UnitSystem = Maneubo.UnitSystem.NauticalMetric;
-      this.board.ZoomFactor = 1D;
+      this.board.ReferenceShapeChanged += new System.EventHandler(this.board_ReferenceShapeChanged);
       this.board.StatusTextChanged += new System.EventHandler(this.board_StatusTextChanged);
       this.board.ToolChanged += new System.EventHandler(this.board_ToolChanged);
       this.board.BackgroundImageChanged += new System.EventHandler(this.board_BackgroundImageChanged);
@@ -520,6 +568,8 @@
     private System.Windows.Forms.ToolStripButton tbSetBackground;
     private System.Windows.Forms.ToolStripMenuItem miRemoveBackground;
     private System.Windows.Forms.ToolStripButton tbTMA;
+    private System.Windows.Forms.ToolStripMenuItem miBoardOptions;
+    private System.Windows.Forms.ToolStripButton tbSetProjection;
   }
 }
 

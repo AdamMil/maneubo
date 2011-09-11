@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using AdamMil.Collections;
 using AdamMil.Utilities;
 
 namespace Maneubo
@@ -16,6 +13,7 @@ namespace Maneubo
     public MainForm()
     {
       InitializeComponent();
+      board.WasChanged = false; // prevent the setting of default property values from affecting whether the board is considered changed
       NewBoard();
       board.SelectedTool = board.AddUnitTool;
     }
@@ -44,6 +42,66 @@ namespace Maneubo
         e.Handled = true;
       }
     }
+
+    protected override void WndProc(ref Message m)
+    {
+      base.WndProc(ref m);
+      if(m.Msg == 0x312) // WM_HOTKEY
+      {
+        switch(m.WParam.ToInt32())
+        {
+          case SaveTimeKeyId:
+            if(stopwatch != null && !stopwatch.IsDisposed) stopwatch.SaveTime();
+            break;
+          case ToggleStopwatchKeyId:
+            if(stopwatch != null && !stopwatch.IsDisposed) stopwatch.Toggle();
+            break;
+        }
+      }
+    }
+
+    protected override void OnShown(EventArgs e)
+    {
+      base.OnShown(e);
+
+      // see if NoRepeat is supported. the actual key registered doesn't matter, since we'll immediately unregister it
+      noRepeatSupported = RegisterHotKey(Handle, 0, HkAlt|HkCtrl|HkShift|HkNoRepeat, 'W');
+      UnregisterHotKey(Handle, 0);
+
+      string dataDirectory = Program.GetDataDirectory();
+      if(dataDirectory != null)
+      {
+        string configFile = Path.Combine(dataDirectory, "config.txt");
+        if(File.Exists(configFile))
+        {
+          using(StreamReader reader = new StreamReader(configFile))
+          {
+            while(true)
+            {
+              string line = reader.ReadLine();
+              if(line == null) break;
+              line = line.Trim();
+              if(line.Length == 0) continue;
+
+              int equals = line.IndexOf('=');
+              if(equals == -1) continue;
+
+              string key = line.Substring(0, equals).Trim(), value = line.Substring(equals+1).Trim();
+              switch(key.ToLowerInvariant())
+              {
+                case "savetimehotkey": int.TryParse(value, out saveTimeKey); break;
+                case "togglestopwatchhotkey": int.TryParse(value, out toggleStopwatchKey); break;
+              }
+            }
+          }
+        }
+      }
+
+      UpdateHotKeys();
+    }
+
+    const int SaveTimeKeyId=0, ToggleStopwatchKeyId=1; // global hotkey IDs
+    const int HkAlt=1, HkCtrl=2, HkShift=4, HkNoRepeat=0x4000; // global hotkey flags
 
     bool CloseBoard()
     {
@@ -139,10 +197,13 @@ namespace Maneubo
       BackgroundImageForm form = new BackgroundImageForm();
       if(form.ShowDialog() == DialogResult.OK)
       {
-        board.BackgroundImage       = form.Image;
-        board.BackgroundImageCenter = board.Center;
-        board.BackgroundImageScale  = ((double)board.Width / form.Image.Width) / board.ZoomFactor;
-        board.SelectedTool = board.SetupBackgroundTool;
+        if(board.BackgroundImage == null) // only set the center and scale if there was no background image alread. otherwise, reuse the
+        {                                 // previous settings
+          board.BackgroundImageCenter = board.Center;
+          board.BackgroundImageScale  = ((double)board.Width / form.Image.Width) / board.ZoomFactor;
+        }
+        board.BackgroundImage = form.Image;
+        board.SelectedTool    = board.SetupBackgroundTool;
         return true;
       }
       return false;
@@ -159,10 +220,25 @@ namespace Maneubo
       return true;
     }
 
+    void UpdateHotKeys()
+    {
+      UnregisterHotKey(Handle, SaveTimeKeyId);
+      UnregisterHotKey(Handle, ToggleStopwatchKeyId);
+
+      int noRepeatFlag = noRepeatSupported ? HkNoRepeat : 0;
+      if(saveTimeKey != 0) RegisterHotKey(Handle, SaveTimeKeyId, saveTimeKey>>16, saveTimeKey&0xFFFF);
+      if(toggleStopwatchKey != 0) RegisterHotKey(Handle, ToggleStopwatchKeyId, toggleStopwatchKey>>16, toggleStopwatchKey&0xFFFF);
+    }
+
     void board_BackgroundImageChanged(object sender, EventArgs e)
     {
       miRemoveBackground.Enabled = board.BackgroundImage != null;
       if(board.SelectedTool == board.SetupBackgroundTool) board.SelectedTool = board.PointerTool;
+    }
+
+    void board_ReferenceShapeChanged(object sender, EventArgs e)
+    {
+      tbAddObservation.Enabled = board.ReferenceShape != null;
     }
 
     void board_StatusTextChanged(object sender, EventArgs e)
@@ -180,6 +256,7 @@ namespace Maneubo
       else if(board.SelectedTool == board.AddLineTool) toolBarButton = tbLine;
       else if(board.SelectedTool == board.AddCircleTool) toolBarButton = tbCircle;
       else if(board.SelectedTool == board.SetupBackgroundTool) toolBarButton = tbSetBackground;
+      else if(board.SelectedTool == board.SetupProjectionTool) toolBarButton = tbSetProjection;
       else throw new NotImplementedException();
 
       foreach(ToolStripButton button in toolStrip.Items.OfType<ToolStripButton>()) button.Checked = button == toolBarButton;
@@ -193,6 +270,24 @@ namespace Maneubo
     void miBackgroundImage_Click(object sender, EventArgs e)
     {
       SetBackgroundImage();
+    }
+
+    void miBoardOptions_Click(object sender, EventArgs e)
+    {
+      BoardOptionsForm form = new BoardOptionsForm(board);
+      if(form.ShowDialog() == DialogResult.OK)
+      {
+        board.ShowAllObservations = form.ShowAllObservations;
+        board.UnitSystem       = form.UnitSystem;
+        board.BackColor        = form.BoardBackgroundColor;
+        board.ObservationColor = form.ObservationColor;
+        board.ReferenceColor   = form.ReferenceColor;
+        board.ScaleColor1      = form.ScaleColor1;
+        board.ScaleColor2      = form.ScaleColor2;
+        board.SelectedColor    = form.SelectedColor;
+        board.TMAColor         = form.TMAColor;
+        board.UnselectedColor  = form.UnselectedColor;
+      }
     }
 
     void miContactShape_Click(object sender, EventArgs e)
@@ -209,6 +304,11 @@ namespace Maneubo
       Close();
     }
 
+    void miNew_Click(object sender, EventArgs e)
+    {
+      NewBoard();
+    }
+
     void miObsType_Click(object sender, EventArgs e)
     {
       ToolStripMenuItem menuItem = (ToolStripMenuItem)sender;
@@ -221,6 +321,39 @@ namespace Maneubo
     void miOpen_Click(object sender, EventArgs e)
     {
       OpenBoard();
+    }
+
+    void miProgramOptions_Click(object sender, EventArgs e)
+    {
+      ProgramOptionsForm form = new ProgramOptionsForm();
+      form.SaveTimeHotkey        = saveTimeKey;
+      form.ToggleStopwatchHotkey = toggleStopwatchKey;
+      if(form.ShowDialog() == DialogResult.OK)
+      {
+        saveTimeKey        = form.SaveTimeHotkey;
+        toggleStopwatchKey = form.ToggleStopwatchHotkey;
+        UpdateHotKeys();
+
+        string dataPath = Program.GetDataDirectory();
+        if(dataPath != null)
+        {
+          string configFile = Path.Combine(dataPath, "config.txt");
+          try
+          {
+            using(StreamWriter writer = new StreamWriter(configFile))
+            {
+              writer.WriteLine("saveTimeHotkey=" + saveTimeKey.ToInvariantString());
+              writer.WriteLine("toggleStopwatchHotkey=" + toggleStopwatchKey.ToInvariantString());
+            }
+            return;
+          }
+          catch { }
+        }
+
+        if(dataPath == null) dataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        MessageBox.Show("Unable to save program settings to " + dataPath, "Unable to save settings",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
     }
 
     void miRemoveBackground_Click(object sender, EventArgs e)
@@ -236,6 +369,18 @@ namespace Maneubo
     void miSaveAs_Click(object sender, EventArgs e)
     {
       SaveBoardAs();
+    }
+
+    void miStopwatch_Click(object sender, EventArgs e)
+    {
+      if(stopwatch == null || stopwatch.IsDisposed)
+      {
+        stopwatch = new StopwatchForm();
+        stopwatch.StartPosition = FormStartPosition.Manual;
+        stopwatch.Location = PointToScreen(new Point(board.Right-stopwatch.Width, board.Top));
+      }
+      if(!stopwatch.Visible) stopwatch.Show();
+      else stopwatch.WindowState = FormWindowState.Normal;
     }
 
     void tbAddObservation_Click(object sender, EventArgs e)
@@ -268,11 +413,27 @@ namespace Maneubo
       if(board.BackgroundImage != null || SetBackgroundImage()) board.SelectedTool = board.SetupBackgroundTool;
     }
 
+    void tbSetProjection_Click(object sender, EventArgs e)
+    {
+      board.SelectedTool = board.SetupProjectionTool;
+    }
+
     void tbTMA_Click(object sender, EventArgs e)
     {
       board.SelectedTool = board.TMATool;
     }
 
+    StopwatchForm stopwatch;
     string fileName;
+    int saveTimeKey, toggleStopwatchKey;
+    bool noRepeatSupported;
+
+    [DllImport("user32.dll", SetLastError=true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vlc);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
   }
 }
