@@ -15,6 +15,7 @@ namespace Maneubo
       txtLength.Text = ManeuveringBoard.GetDistanceString(meters, unitSystem);
       txtLength.Tag  = meters;
       txtLength.WasChanged = false;
+      this.unitSystem = unitSystem;
     }
 
     public double Distance
@@ -22,7 +23,7 @@ namespace Maneubo
       get
       {
         double distance;
-        if(txtLength.WasChanged) TryParseLength(txtLength.Text, out distance);
+        if(txtLength.WasChanged) TryParseLength(txtLength.Text, unitSystem, out distance);
         else distance = (double)txtLength.Tag;
         return distance;
       }
@@ -33,7 +34,7 @@ namespace Maneubo
       double length;
       if(txtLength.WasChanged)
       {
-        if(TryParseLength(txtLength.Text, out length))
+        if(TryParseLength(txtLength.Text, unitSystem, out length))
         {
           txtLength.Tag = length;
         }
@@ -47,5 +48,7 @@ namespace Maneubo
 
       DialogResult = DialogResult.OK;
     }
+
+    readonly UnitSystem unitSystem;
   }
 }

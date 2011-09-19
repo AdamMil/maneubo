@@ -11,14 +11,10 @@ using System.Xml;
 using AdamMil.Collections;
 using AdamMil.Mathematics;
 using AdamMil.Mathematics.Geometry;
-using AdamMil.Mathematics.LinearAlgebra;
+using AdamMil.Mathematics.Optimization;
 using AdamMil.Utilities;
-using Microsoft.SolverFoundation.Common;
-using Microsoft.SolverFoundation.Services;
-using Microsoft.SolverFoundation.Solvers;
 using BoardPoint = AdamMil.Mathematics.Geometry.Point2;
 using BoardRect  = AdamMil.Mathematics.Geometry.Rectangle;
-using Matrix     = AdamMil.Mathematics.Matrix;
 using SysPoint   = System.Drawing.Point;
 using SysRect    = System.Drawing.Rectangle;
 
@@ -26,25 +22,15 @@ using SysRect    = System.Drawing.Rectangle;
 //       parent (for all shapes), radius (for circles), effective speed/course (for units having waypoints), etc.)
 // TODO: allow double-clicking shapes to edit their properties
 // TODO: parent/child relationships should be useful somehow
-// TODO: intercepts, relative <-> absolute motion, and other specialized calculations
-// TODO: make auto TMA smarter (i.e. use distance to ray instead of distance to line, respect solution locking -- use quadratic
-//       programming and/or some general non-linear minimizer. we can still use the linear form when we don't need locking, and then we
-//       can check the output to see if it generated a bad result [i.e. if it used a reciprocal bearing line] and switch to quadratic
-//       programming if so). it would also be good if we could specify ranges for quantities rather than exact values. for instance, we
-//       could specify that the speed is between 5 and 15 knots, or that the course is between 75 and 105 degrees). it may also be useful
-//       to allow auto TMA to optimize a solution given by the user
-// TODO: eliminate the dependency on Microsoft.SolverFoundation by somehow creating our own QP implementation
+// TODO: relative <-> absolute motion, and other specialized calculations
 // TODO: draw more data on lines (distance, angle, ?)
 // TODO: time advancement?
 // TODO: unit time? (e.g. marking when a unit first comes into being on the map. observations, TMA, etc. are calculated from that time)
 // TODO: only allow unit shapes to have children (?). currently, we're not saving children for any other shapes, and only unit shapes can
 //       have children added from the UI
-// TODO: handle unit systems
 // TODO: make stopwatch time labels into text boxes and allow editing while stopped
 // TODO: save/load selection and reference shape
 // TODO: allow adding waypoint when no ref unit selected (maybe split off waypoint adding into a separate tool)
-// TODO: allow specifying the latitude and longitude of a point, and then displaying the coordinate in the status bar. (this requires
-//       a map projection -- DW uses Mercator, it looks like)
 
 // FIXME: if the tool changes, we have to cancel mouse drag (and notify the previously selected tool)
 
@@ -117,6 +103,7 @@ namespace Maneubo
       AddLineTool = new AddLineToolClass(this);
       AddObservationTool = new AddObservationToolClass(this);
       AddUnitTool = new AddUnitToolClass(this);
+      InterceptTool = new InterceptToolClass(this);
       PointerTool = new PointerToolClass(this);
       SetupBackgroundTool = new SetupBackgroundToolClass(this);
       SetupProjectionTool = new SetupMapProjectionClass(this);
@@ -341,9 +328,10 @@ namespace Maneubo
         if(e.Button == MouseButtons.Left)
         {
           UnitShape unit;
+          bool project = (Control.ModifierKeys & Keys.Control) != 0;
           // clicking on a unit selects it. this way, the user doesn't have to change tools or right-click and dismiss the menu to change
-          // the target for which we'll add an observation. holding shift overrides this
-          if((Control.ModifierKeys & Keys.Shift) == 0)
+          // the target for which we'll add an observation. holding shift overrides this, as does holding control to project a bearing line
+          if((Control.ModifierKeys & Keys.Shift) == 0 && !project)
           {
             Shape shape = Board.GetShapeUnderCursor(e.Location);
             if(shape is UnitShape ||
@@ -355,8 +343,6 @@ namespace Maneubo
               return true;
             }
           }
-
-          bool project = (Control.ModifierKeys & Keys.Control) != 0;
 
           unit = GetSelectedUnit();
           if(unit != null && (Type == PositionalDataType.Waypoint || unit != Board.ReferenceShape))
@@ -543,6 +529,79 @@ namespace Maneubo
     }
     #endregion
 
+    #region InterceptToolClass
+    public sealed class InterceptToolClass : Tool
+    {
+      public InterceptToolClass(ManeuveringBoard board) : base(board) { }
+
+      public override void Activate()
+      {
+        SetStatusText();
+      }
+
+      public override void Deactivate()
+      {
+        Board.StatusText = "";
+      }
+
+      public override bool MouseClick(MouseEventArgs e)
+      {
+        if(e.Button == MouseButtons.Left && Board.ReferenceShape != null)
+        {
+          UnitShape target = Board.GetShapeUnderCursor(e.Location) as UnitShape;
+          if(target != null && target != Board.ReferenceShape)
+          {
+            if(target.Children.Count(c => c is Waypoint) > 1)
+            {
+              MessageBox.Show("Intercepting targets with multiple waypoints is not (yet) supported.", "Not supported",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+              InterceptForm form = new InterceptForm(Board.ReferenceShape, target, Board.UnitSystem);
+              if(form.ShowDialog() == DialogResult.OK)
+              {
+                // delete existing waypoints
+                for(int i=Board.ReferenceShape.Children.Count-1; i >= 0; i--)
+                {
+                  Waypoint waypoint = Board.ReferenceShape.Children[i] as Waypoint;
+                  if(waypoint != null) Board.ReferenceShape.Children.RemoveAt(i);
+                }
+
+                if(form.CreateWaypoints)
+                {
+                  Waypoint waypoint = new Waypoint();
+                  waypoint.Position = form.InterceptPoint;
+                  waypoint.Time     = TimeSpan.FromSeconds(Math.Max(1, form.Time));
+                  Board.ReferenceShape.Children.Add(waypoint);
+                }
+                else
+                {
+                  Board.ReferenceShape.Direction = form.Course;
+                  Board.ReferenceShape.Speed     = form.Speed;
+                }
+                Board.Invalidate();
+              }
+            }
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      public override void MouseMove(MouseEventArgs e)
+      {
+        SetStatusText();
+      }
+
+      void SetStatusText()
+      {
+        Board.StatusText = "Choose a reference unit and click the intercept target...";
+      }
+    }
+    #endregion
+
     #region PointerToolClass
     public sealed class PointerToolClass : Tool
     {
@@ -692,6 +751,10 @@ namespace Maneubo
           {
             form_ApplySolution(null, null);
           }
+          else if(e.KeyCode == Keys.O && e.Modifiers == Keys.Shift)
+          {
+            form_Optimize(null, null);
+          }
           else if(e.KeyCode == Keys.T && e.Modifiers == Keys.Shift)
           {
             form_AutoSolve(null, null);
@@ -792,14 +855,33 @@ namespace Maneubo
           Vector2 crossTick = velocity.CrossVector.Normalized(6);
 
           List<float> errors = new List<float>(12);
+          int selectedObservation = -1;
 
-          foreach(BearingObservation bearing in unit.Children.OfType<BearingObservation>().OrderBy(o => o.Time))
+          foreach(Observation observation in unit.Children.OfType<Observation>().OrderBy(o => o.Time))
           {
-            BoardPoint unitPoint = position + velocity*bearing.Time.TotalSeconds;
-            PointF point = Board.GetRenderPoint(unitPoint);
-            graphics.DrawLine(Board.tmaPen, point.X-(float)crossTick.X, point.Y+(float)crossTick.Y,
-                              point.X+(float)crossTick.X, point.Y-(float)crossTick.Y);
-            errors.Add((float)bearing.GetBearingLine().DistanceTo(unitPoint));
+            if(Board.SelectedShape == observation) selectedObservation = errors.Count;
+            BoardPoint unitPoint = position + velocity*observation.Time.TotalSeconds;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              PointF point = Board.GetRenderPoint(unitPoint);
+              graphics.DrawLine(Board.tmaPen, point.X-(float)crossTick.X, point.Y+(float)crossTick.Y,
+                                point.X+(float)crossTick.X, point.Y-(float)crossTick.Y);
+              // if the point is on the right side of side, then the error is the distance to the bearing line
+              if(bearing.Vector.DotProduct(unitPoint - bearing.GetEffectiveObserverPosition()) >= 0)
+              {
+                errors.Add((float)bearing.GetBearingLine().DistanceTo(unitPoint));
+              }
+              else // otherwise, it's the distance to the observer
+              {
+                errors.Add((float)unitPoint.DistanceTo(bearing.GetEffectiveObserverPosition()));
+              }
+            }
+            else
+            {
+              PointObservation point = observation as PointObservation;
+              errors.Add((float)unitPoint.DistanceTo(point.Position));
+            }
           }
 
           PointF end = Board.GetRenderPoint(position + velocity * (maxTime == 0 ? VectorTime : maxTime));
@@ -840,8 +922,8 @@ namespace Maneubo
             graphics.DrawVLine(Pens.White, dotStackRect.X + dotStackRect.Width/2, dotStackRect.Y + Board.Font.Height + 4,
                                dotStackRect.Bottom-1);
 
-            // TODO: should we position the dots vertically based on their time (i.e. if some observations are further apart in time, should
-            // they be further apart vertically?)
+            // TODO: should we position the dots vertically based on their time (i.e. if some observations are further apart in time,
+            // should they be further apart vertically?)
             // TODO: what about dots that correspond to the same time (e.g. observations from two sensors?)
             for(int x=dotStackRect.X+dotStackRect.Width/2, y=dotStackRect.Y+Board.Font.Height+8, i=errors.Count-1; i >= 0; y += 6, i--)
             {
@@ -849,7 +931,7 @@ namespace Maneubo
               if(dotX < dotStackRect.X) dotX = dotStackRect.X;
               else if(dotX > dotStackRect.Right-1) dotX = dotStackRect.Right-1;
 
-              graphics.FillRectangle(Brushes.Lime, dotX-1, y, 3, 3);
+              graphics.FillRectangle(i == selectedObservation ? Brushes.Red : Brushes.Lime, dotX-1, y, 3, 3);
             }
           }
         }
@@ -879,6 +961,491 @@ namespace Maneubo
       {
         None, Start, Middle, End
       }
+
+      #region AngleRangeConstraint
+      /// <summary>Constrains a course to a particular range.</summary>
+      sealed class AngleRangeConstraint : IDifferentiableMDFunction
+      {
+        public AngleRangeConstraint(int arity, double min, double max)
+        {
+          this.arity = arity;
+          this.min   = min;
+          this.max   = max;
+        }
+
+        public int Arity
+        {
+          get { return arity; }
+        }
+
+        public int DerivativeCount
+        {
+          get { return 1; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          double angle = SwapBearing(new Vector2(x[2], x[3]).Angle);
+          if(min <= max) return angle < min ? min - angle : angle - max;
+          else return angle >= min ? min - angle : angle - max;
+        }
+
+        public void EvaluateGradient(double[] input, double[] gradient)
+        {
+          for(int i=0; i<gradient.Length; i++) gradient[i] = 0;
+
+          double x = input[2], y = input[3], xx=x*x, xxyy = xx + y*y, length = Math.Sqrt(xxyy), xxyy32 = Math.Pow(xxyy, 1.5);
+          double compRoot = Math.Sqrt(1-xx/xxyy), xd = -(-xx/xxyy32 + 1/length) / compRoot, yd = x*y / (xxyy32 * compRoot);
+
+          double angle = Math.Acos(x/length);
+          if(y < 0) angle = Math.PI*2-angle;
+          angle = SwapBearing(angle);
+          if((y < 0) ^ (min <= max ? angle < min : angle >= min))
+          {
+            gradient[2] = xd;
+            gradient[3] = yd;
+          }
+          else
+          {
+            gradient[2] = -xd;
+            gradient[3] = -yd;
+          }
+        }
+
+        readonly double min, max;
+        readonly int arity;
+      }
+      #endregion
+
+      #region ErrorFunctionBase
+      abstract class ErrorFunctionBase
+      {
+        public ErrorFunctionBase(UnitShape unit)
+        {
+          this.unit = unit;
+        }
+
+        public int DerivativeCount
+        {
+          get { return 1; }
+        }
+
+        protected double Evaluate(BoardPoint unitStart, Vector2 velocity)
+        {
+          double sqError = 0;
+
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            BoardPoint unitPoint = unitStart + velocity*observation.Time.TotalSeconds;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector);
+                sqError += error*error;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                sqError += unitPoint.DistanceSquaredTo(observerPoint); // use the distance from the observer as the error
+              }
+            }
+            else
+            {
+              sqError += unitPoint.DistanceSquaredTo(observation.Position);
+            }
+          }
+
+          return sqError;
+        }
+
+        protected readonly UnitShape unit;
+      }
+      #endregion
+
+      #region CourseErrorFunction
+      /// <summary>Evalutes the amount of error in a TMA solution when the course is locked.</summary>
+      sealed class CourseErrorFunction : ErrorFunctionBase, IDifferentiableMDFunction
+      {
+        public CourseErrorFunction(UnitShape unit, Vector2 velocity) : base(unit)
+        {
+          normalVelocity = velocity.Normal; // normalize the velocity vector so we can multiply it by a speed parameter
+        }
+
+        public int Arity
+        {
+          get { return 3; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          return Evaluate(new BoardPoint(x[0], x[1]), normalVelocity*x[2]);
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          BoardPoint unitStart = new BoardPoint(x[0], x[1]);
+          double speed=x[2], xDeriv=0, yDeriv=0, speedDeriv=0;
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            double time = observation.Time.TotalSeconds;
+            Vector2 timeVelocity = normalVelocity*time;
+            BoardPoint unitPoint = unitStart + timeVelocity*speed;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector);
+                xDeriv     += bearingVector.Y * error;
+                yDeriv     -= bearingVector.X * error;
+                speedDeriv += (bearingVector.Y*timeVelocity.X - bearingVector.X*timeVelocity.Y) * error;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                xDeriv     += obsVector.X;
+                yDeriv     += obsVector.Y;
+                speedDeriv += timeVelocity.X*obsVector.X + timeVelocity.Y*obsVector.Y;
+              }
+            }
+            else
+            {
+              double xd = unitPoint.X - observation.Position.X, yd = unitPoint.Y - observation.Position.Y;
+              xDeriv     += xd;
+              yDeriv     += yd;
+              speedDeriv += timeVelocity.X*xd + timeVelocity.Y*yd;
+            }
+          }
+
+          gradient[0] = 2*xDeriv;
+          gradient[1] = 2*yDeriv;
+          gradient[2] = 2*speedDeriv;
+        }
+
+        readonly Vector2 normalVelocity;
+      }
+      #endregion
+
+      #region ErrorFunction
+      /// <summary>Evalutes the amount of error in a TMA solution.</summary>
+      sealed class ErrorFunction : ErrorFunctionBase, IDifferentiableMDFunction
+      {
+        public ErrorFunction(UnitShape unit) : base(unit) { }
+
+        public int Arity
+        {
+          get { return 4; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          return Evaluate(new BoardPoint(x[0], x[1]), new Vector2(x[2], x[3]));
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          BoardPoint unitStart = new BoardPoint(x[0], x[1]);
+          Vector2 velocity = new Vector2(x[2], x[3]);
+
+          double xDeriv=0, yDeriv=0, vxDeriv=0, vyDeriv=0;
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            double time = observation.Time.TotalSeconds;
+            BoardPoint unitPoint = unitStart + velocity*time;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector), xd = bearingVector.Y * error, yd = bearingVector.X * error;
+                xDeriv  += xd;
+                yDeriv  -= yd;
+                vxDeriv += time*xd;
+                vyDeriv -= time*yd;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                xDeriv  += obsVector.X;
+                yDeriv  += obsVector.Y;
+                vxDeriv += time*obsVector.X;
+                vyDeriv += time*obsVector.Y;
+              }
+            }
+            else
+            {
+              double xd = unitPoint.X - observation.Position.X, yd = unitPoint.Y - observation.Position.Y;
+              xDeriv  += xd;
+              yDeriv  += yd;
+              vxDeriv += time*xd;
+              vyDeriv += time*yd;
+            }
+          }
+
+          gradient[0] = 2*xDeriv;
+          gradient[1] = 2*yDeriv;
+          gradient[2] = 2*vxDeriv;
+          gradient[3] = 2*vyDeriv;
+        }
+      }
+      #endregion
+
+      #region NormalizationConstraint
+      sealed class NormalizationConstraint : IDifferentiableMDFunction
+      {
+        public NormalizationConstraint(int arity)
+        {
+          this.arity = arity;
+        }
+
+        public int Arity
+        {
+          get { return arity; }
+        }
+
+        public int DerivativeCount
+        {
+          get { return 1; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          double vx = x[2], vy = x[3];
+          return Math.Abs(vx*vx + vy*vy - 1);
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          for(int i=0; i<gradient.Length; i++) gradient[i] = 0;
+          double vx = x[2], vy = x[3];
+          if(vx*vx + vy*vy >= 1)
+          {
+            gradient[2] = 2*vx;
+            gradient[3] = 2*vy;
+          }
+          else
+          {
+            gradient[2] = -2*vx;
+            gradient[3] = -2*vy;
+          }
+        }
+
+        readonly int arity;
+      }
+      #endregion
+
+      #region RangeErrorFunction
+      sealed class RangeErrorFunction : ErrorFunctionBase, IDifferentiableMDFunction
+      {
+        public RangeErrorFunction(UnitShape unit) : base(unit) { }
+
+        public int Arity
+        {
+          get { return 5; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          return Evaluate(new BoardPoint(x[0], x[1]), new Vector2(x[2], x[3])*x[4]);
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          BoardPoint unitStart = new BoardPoint(x[0], x[1]);
+          Vector2 normalVelocity = new Vector2(x[2], x[3]), velocity = normalVelocity*x[4];
+          double speed=x[4], xDeriv=0, yDeriv=0, vxDeriv=0, vyDeriv=0, speedDeriv=0;
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            double time = observation.Time.TotalSeconds;
+            Vector2 timeVelocity = velocity*time;
+            BoardPoint unitPoint = unitStart + timeVelocity;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector);
+                xDeriv     += bearingVector.Y * error;
+                yDeriv     -= bearingVector.X * error;
+                vxDeriv    += bearingVector.Y*speed*time * error;
+                vyDeriv    -= bearingVector.X*speed*time * error;
+                speedDeriv += (bearingVector.Y*normalVelocity.X*time - bearingVector.X*normalVelocity.Y*time) * error;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                xDeriv     += obsVector.X;
+                yDeriv     += obsVector.Y;
+                vxDeriv    += speed * time * obsVector.X;
+                vyDeriv    += speed * time * obsVector.Y;
+                speedDeriv += normalVelocity.X*time*obsVector.X + normalVelocity.Y*time*obsVector.Y;
+              }
+            }
+            else
+            {
+              double xd = unitPoint.X - observation.Position.X, yd = unitPoint.Y - observation.Position.Y;
+              xDeriv     += xd;
+              yDeriv     += yd;
+              vxDeriv    += speed * time * xd;
+              vyDeriv    += speed * time * yd;
+              speedDeriv += normalVelocity.X*time*xd + normalVelocity.Y*time*yd;
+            }
+          }
+
+          gradient[0] = 2*xDeriv;
+          gradient[1] = 2*yDeriv;
+          gradient[2] = 2*vxDeriv;
+          gradient[3] = 2*vyDeriv;
+          gradient[4] = 2*speedDeriv;
+        }
+      }
+      #endregion
+
+      #region SpeedErrorFunction
+      /// <summary>Evalutes the amount of error in a TMA solution when the speed is locked.</summary>
+      sealed class SpeedErrorFunction : ErrorFunctionBase, IDifferentiableMDFunction
+      {
+        public SpeedErrorFunction(UnitShape unit, double speed) : base(unit)
+        {
+          this.speed = speed;
+        }
+
+        public int Arity
+        {
+          get { return 4; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          return Evaluate(new BoardPoint(x[0], x[1]), new Vector2(x[2], x[3])*speed);
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          BoardPoint unitStart = new BoardPoint(x[0], x[1]);
+          Vector2 velocity = new Vector2(x[2], x[3]) * speed;
+          double xDeriv=0, yDeriv=0, vxDeriv=0, vyDeriv=0;
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            double time = observation.Time.TotalSeconds;
+            Vector2 timeVelocity = velocity*time;
+            BoardPoint unitPoint = unitStart + timeVelocity;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector);
+                xDeriv  += bearingVector.Y * error;
+                yDeriv  -= bearingVector.X * error;
+                vxDeriv += bearingVector.Y*speed*time * error;
+                vyDeriv -= bearingVector.X*speed*time * error;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                xDeriv  += obsVector.X;
+                yDeriv  += obsVector.Y;
+                vxDeriv += speed * time * obsVector.X;
+                vyDeriv += speed * time * obsVector.Y;
+              }
+            }
+            else
+            {
+              double xd = unitPoint.X - observation.Position.X, yd = unitPoint.Y - observation.Position.Y;
+              xDeriv  += xd;
+              yDeriv  += yd;
+              vxDeriv += speed * time * xd;
+              vyDeriv += speed * time * yd;
+            }
+          }
+
+          gradient[0] = 2*xDeriv;
+          gradient[1] = 2*yDeriv;
+          gradient[2] = 2*vxDeriv;
+          gradient[3] = 2*vyDeriv;
+        }
+
+        readonly double speed;
+      }
+      #endregion
+
+      #region VelocityErrorFunction
+      /// <summary>Evalutes the amount of error in a TMA solution when both speed and course are locked (i.e. when the velocity is known).</summary>
+      sealed class VelocityErrorFunction : ErrorFunctionBase, IDifferentiableMDFunction
+      {
+        public VelocityErrorFunction(UnitShape unit, Vector2 velocity) : base(unit)
+        {
+          this.velocity = velocity;
+        }
+
+        public int Arity
+        {
+          get { return 2; }
+        }
+
+        public double Evaluate(params double[] x)
+        {
+          return Evaluate(new BoardPoint(x[0], x[1]), velocity);
+        }
+
+        public void EvaluateGradient(double[] x, double[] gradient)
+        {
+          double xDeriv=0, yDeriv=0;
+          BoardPoint unitStart = new BoardPoint(x[0], x[1]);
+          foreach(Observation observation in unit.Children.OfType<Observation>())
+          {
+            BoardPoint unitPoint = unitStart + velocity*observation.Time.TotalSeconds;
+            BearingObservation bearing = observation as BearingObservation;
+            if(bearing != null)
+            {
+              BoardPoint observerPoint = bearing.GetEffectiveObserverPosition();
+              Vector2 bearingVector = bearing.Vector, obsVector = unitPoint - observerPoint;
+              if(bearingVector.DotProduct(obsVector) >= 0) // if the target position is on the correct side of the observer...
+              {
+                // then the error is the signed distance to the bearing line, which equals the dot product of the cross vector (which is
+                // already normalized) and the observation vector
+                double error = bearingVector.CrossVector.DotProduct(obsVector);
+                xDeriv += bearingVector.Y * error;
+                yDeriv -= bearingVector.X * error;
+              }
+              else // otherwise, the target position is on the wrong side of the observer...
+              {
+                xDeriv += obsVector.X;
+                yDeriv += obsVector.Y;
+              }
+            }
+            else
+            {
+              xDeriv += unitPoint.X - observation.Position.X;
+              yDeriv += unitPoint.Y - observation.Position.Y;
+            }
+          }
+
+          gradient[0] = 2*xDeriv;
+          gradient[1] = 2*yDeriv;
+        }
+
+        readonly Vector2 velocity;
+      }
+      #endregion
 
       void CalculateTimeSpan()
       {
@@ -953,614 +1520,11 @@ namespace Maneubo
           form.AutoSolve += form_AutoSolve;
           form.CourseChanged += form_CourseChanged;
           form.FormClosed += form_FormClosed;
+          form.Optimize += form_Optimize;
           form.SpeedChanged += form_SpeedChanged;
           form.Show(Board.FindForm());
           Board.FindForm().Select(); // give focus back to the main form
         }
-      }
-
-      bool SolveLeastSquares(out BoardPoint position, out Vector2 velocity)
-      {
-        // this method handles three cases for bearing observations:
-        // 1. if nothing is locked, then we minimize cross(S) · (A+V*t-P) for each observation, where S is the normalized bearing vector
-        //    (known), A is the target position (unknown), V is the target velocity (unknown), and P is the observer position (known), for
-        //    a total of 4 unknowns (two per unknown point/vector). cross(X) returns a vector perpendicular to X.
-        //
-        // 2. if only course is locked, we can minimize cross(S) · (A+V*s*t-P) where V is a normalized constant vector and s is a new
-        //    scalar variable (3 unknowns)
-        //
-        // 3. if both course and speed are locked, then we minimize cross(S) · (A+V*t-P) where V is a non-normalized constant vector
-        //    (2 unknowns)
-        //
-        // if only speed is locked, we can minimize cross(S) · (A+V*s*t-P) where s is a constant and V is constrained to be normalized.
-        // unfortunately, that would be a quadratic constraint, requiring a non-linear solver. alternately, we could try to formulate the
-        // course using a single unknown angle θ rather than a vector, but that would also result in non-linearity due to sine and cosine,
-        // i think. so the case when only speed is locked is not handled by this method
-        //
-        // in all cases, the bearing minimization is subject to the error in which it places the target on a reciprocal bearing (since
-        // it's just the other half of the same mathematical line). we would need a constraint to enforce the right direction, but we can't
-        // specify that with linear least squares. so the caller has the responsibility of checking that the result looks sane
-        //
-        // for point observations, we try to minimize |A+V*t-O| in cases 1 and 3, and |A+V*s*t-O| in case 2 (where O is the observation
-        // point)
-        //
-        // since this is least squares, we actually minimize the square of the error.
-        //
-        // in case 1 and 3, the error is cross(S) · (A+V*t-P) = -Sy(Ax+Vx*t-Px) + Sx(Ay+Vy*t-Py) (where Vx and Vy are either variables or
-        // constansts). we square this to get (-Sy(Ax+Vx*t-Px) + Sx(Ay+Vy*t-Py))^2, which expands to a rather massive equation. then we
-        // take the partial derivatives for each of the variables -- Ax,Ay,Vx,Vy in case 1 and Ax,Ay in case 3. where the partial
-        // derivatives are all zero (i.e. where the gradient is a zero vector), we have a stationary point of the squared error function.
-        // since the squared error function of a linear expression is a kind of quadratic surface that has only a single stationary
-        // point, at its minimum. (i'm not sure, but i think it's an elliptic paraboloid with a number of dimensions equal to the number
-        // of unknowns.) by solving the system of equations where all the partial derivatives are zero, we can find this minimum. the
-        // derivative equations work out to be (after removing an unnecessary factor of 2 and setting them equal to zero):
-        //
-        // Ax: -Ay*Sx*Sy + Py*Sx*Sy + Ax*Sy^2 - Px*Sy^2 + Sy^2*t*Vx - Sx*Sy*t*Vy = 0
-        // Ay: Ay*Sx^2 - Py*Sx^2 - Ax*Sx*Sy + Px*Sx*Sy - Sx*Sy*t*Vx + Sx^2*t*Vy = 0
-        // Vx: -Ay*Sx*Sy*t + Py*Sx*Sy*t + Ax*Sy^2*t - Px*Sy^2*t + Sy^2*t^2*Vx - Sx*Sy*t^2*Vy = 0
-        // Vy: Ay*Sx^2*t - Py*Sx^2*t - Ax*Sx*Sy*t + Px*Sx*Sy*t - Sx*Sy*t^2*Vx + Sx^2*t^2*Vy = 0
-        // 
-        // each term should have at most one variable factor, so it can be represented as a linear equation of the variables, potentially
-        // with a constant term. we'll group the coefficients (assuming Vx,Vy are variables) and move the constant term to the other side
-        // of the equals sign and get:
-        //
-        // Ax: Ax*(Sy^2) - Ay*(Sx*Sy) + Vx*(Sy^2*t) - Vy*(Sx*Sy*t) = Px*Sy^2 - Py*Sx*Sy
-        // Ay: Ay*(Sx^2) - Ax*(Sx*Sy) + Vy*(Sx^2*t) - Vx*(Sx*Sy*t) = Py*Sx^2 - Px*Sx*Sy
-        // Vx: Ax*(Sy^2*t) - Ay*(Sx*Sy*t) + Vx*(Sy^2*t^2) - Vy*(Sx*Sy*t^2) = Px*Sy^2*t - Py*Sx*Sy*t
-        // Vy: Ay*(Sx^2*t) - Ax*(Sx*Sy*t) + Vy*(Sx^2*t^2) - Vx*(Sx*Sy*t^2) = Py*Sx^2*t - Px*Sx*Sy*t
-        //
-        // if Vx and Vy are constants, their terms get moved to the other side of the equals sign as well, and the partial derivatives for
-        // Vx and Vy are removed. these are the normal equations, and they can be solved to give a least squares solution to the original
-        // minimization problem
-        //
-        // for point observations, the error is |A+V*t-O| = sqrt((Ax+Vx*t-Ox)^2+(Ay+Vy*t-Oy)^2). we want to minimize the squared error, so
-        // we simply strip off the sqrt() and get (Ax+Vx*t-Ox)^2 + (Ay+Vy*t-Oy)^2. then we take the partial derivatives again, yielding:
-        //
-        // Ax: Ax - Ox + Vx*t = 0
-        // Ay: Ay - Oy + Vy*t = 0
-        // vx: Ax*t - Ox*t + Vx*t^2 = 0
-        // Vy: Ay*t - Oy*t + Vy*t^2 = 0
-        //
-        // Ax: Ax + Vx*t = Ox
-        // Ay: Ay + Vy*t = Oy
-        // vx: Ax*t + Vx*t^2 = Ox*t
-        // Vy: Ay*t + Vy*t^2 = Oy*t
-        //
-        // in case 2, the error equations are a bit different, as they include a speed variable. they work out as follows:
-        //
-        // minimizing squared error (cross(S) · (A+V*s*t-P))^2: 
-        // Ax: Ax*(Sy^2) - Ay*(Sx*Sy) + s*(Sy^2*Vx*t - Sx*Sy*Vy*t) = Px*Sy^2 - Py*Sx*Sy
-        // Ay: Ay*(Sx^2) - Ax*(Sx*Sy) + s*(Sx^2*Vy*t - Sx*Sy*Vx*t) = Py*Sx^2 - Px*Sx*Sy
-        //  s: Ax*(Sy^2*Vx*t - Sx*Sy*Vy*t) - Ay*(Sx^2*Vy*t - Sx*Sy*Vx*t) + s*(Sx^2*Vy^2*t^2 + Sy^2*Vx^2*t^2 - 2Sx*Sy*Vx*Vy*t^2) =
-        //     Px*Sy^2*t*Vx - Py*Sx*Sy*t*Vx + Py*Sx^2*t*Vy - Px*Sx*Sy*t*Vy
-        //
-        // minimizing squared error |A+V*s*t-O|^2 = (Ax+Vx*s*t-Ox)^2 + (Ay+Vy*s*t-Oy)^2:
-        // Ax: Ax + s*(Vx*t) = Ox
-        // Ay: Ay + s*(Vy*t) = Oy
-        //  s: Ax*(Vx*t) + Ay*(Vy*t) + s*(Vx^2*t^2 + Vy^2*t^2) = Ox*Vx*t + Oy*Vy*t
-        Matrix matrix;
-        double[] constSum;
-        UnitShape unit = GetSelectedUnit();
-
-        if(form.LockSpeed) // if speed is locked, then both course and speed should be locked
-        {
-          if(!form.LockCourse) throw new InvalidOperationException(); // double-check it
-          matrix   = new Matrix(2, 2);
-          constSum = new double[2];
-          velocity = this.velocity; // the velocity is fixed
-
-          foreach(Observation observation in unit.Children.OfType<Observation>())
-          {
-            double time = observation.Time.TotalSeconds;
-
-            BearingObservation bearing = observation as BearingObservation;
-            if(bearing != null)
-            {
-              BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-              Vector2 bearingLine = bearing.Vector;
-              double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-
-              matrix[0,0] += sySqr; // Ax*(Sy^2)
-              matrix[0,1] += -sxy;  // -Ay*(Sx*Sy)
-              // = Px*Sy^2 - Py*Sx*Sy - Vx*(Sy^2*t) + Vy*(Sx*Sy*t)
-              constSum[0] += observerPosition.X*sySqr - observerPosition.Y*sxy - sySqr*time*velocity.X + sxy*time*velocity.Y;
-
-              matrix[1,0] += -sxy;  // -Ax*(Sx*Sy)
-              matrix[1,1] += sxSqr; // +Ay*(Sx^2)
-              // = Py*Sx^2 - Px*Sx*Sy - Vy*(Sx^2*t) + Vx*(Sx*Sy*t)
-              constSum[1] += observerPosition.Y*sxSqr - observerPosition.X*sxy + sxy*time*velocity.X - sxSqr*time*velocity.Y;
-            }
-
-            PointObservation point = observation as PointObservation;
-            if(point != null)
-            {
-              matrix[0,0] += 1; // Ax
-              constSum[0] += point.Position.X - velocity.X*time; // = Ox - Vx*t
-
-              matrix[1,0] += 1; // Ay
-              constSum[1] += point.Position.Y - velocity.Y*time; // = Oy - Vy*t
-            }
-          } 
-        }
-        else if(form.LockCourse) // otherwise, only course is locked
-        {
-          Matrix3 m = new Matrix3();
-          constSum = new double[3];
-
-          velocity = this.velocity.Normal; // get the normalized velocity, which we'll incorporate into the equations
-
-          foreach(Observation observation in unit.Children.OfType<Observation>())
-          {
-            double time = observation.Time.TotalSeconds, timeSqr = time*time;
-
-            BearingObservation bearing = observation as BearingObservation;
-            if(bearing != null)
-            {
-              BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-              Vector2 bearingLine = bearing.Vector;
-              double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-
-              m.M00 += sySqr;                                    // Ax*(Sy^2)
-              m.M01 += -sxy;                                     // -Ay*(Sx*Sy)
-              m.M02 += time*(sySqr*velocity.X - sxy*velocity.Y); // +s*(Sy^2*Vx*t - Sx*Sy*Vy*t)
-              constSum[0] += observerPosition.X*sySqr - observerPosition.Y*sxy; // = Px*Sy^2 - Py*Sx*Sy
-
-              m.M10 += -sxy;                                     // -Ax*(Sx*Sy)
-              m.M11 += sxSqr;                                    // +Ay*(Sx^2)
-              m.M12 += time*(sxSqr*velocity.Y - sxy*velocity.X); // +s*(Sx^2*Vy*t - Sx*Sy*Vx*t)
-              constSum[1] += observerPosition.Y*sxSqr - observerPosition.X*sxy; // = Py*Sx^2 - Px*Sx*Sy
-
-              m.M20 += time*(sySqr*velocity.X - sxy*velocity.Y); // Ax*(Sy^2*Vx*t - Sx*Sy*Vy*t)
-              m.M21 += time*(sxy*velocity.X - sxSqr*velocity.Y); // -Ay*(Sx^2*Vy*t - Sx*Sy*Vx*t)
-              // +s*(Sx^2*Vy^2*t^2 + Sy^2*Vx^2*t^2 - 2Sx*Sy*Vx*Vy*t^2)
-              m.M22 += timeSqr*(sxSqr*velocity.Y*velocity.Y + sySqr*velocity.X*velocity.X - 2*sxy*velocity.X*velocity.Y);
-              // = Px*Sy^2*t*Vx - Py*Sx*Sy*t*Vx + Py*Sx^2*t*Vy - Px*Sx*Sy*t*Vy = t*(Vx*(Px*Sy^2 - Py*Sx*Sy) + Vy*(Py*Sx^2 - Px*Sx*Sy))
-              constSum[2] += time * (velocity.X * (observerPosition.X*sySqr - observerPosition.Y*sxy) +
-                                     velocity.Y * (observerPosition.Y*sxSqr - observerPosition.X*sxy));
-            }
-
-            PointObservation point = observation as PointObservation;
-            if(point != null)
-            {
-              m.M00 += 1;    // Ax
-              m.M02 += velocity.X*time; // +s*(Vx*t)
-              constSum[0] += point.Position.X; // = Ox
-
-              m.M11 += 1;    // Ay
-              m.M12 += velocity.Y*time; // +S*(Vy*t)
-              constSum[1] += point.Position.Y; // = Oy
-
-              m.M20 += velocity.X*time; // Ax*(Vx*t)
-              m.M21 += velocity.Y*time; // +Ay*(Vy*t)
-              m.M22 += timeSqr * (velocity.X*velocity.X + velocity.Y*velocity.Y); // + s*(Vx^2*t^2 + Vy^2*t^2)
-              constSum[2] += time*(point.Position.X*velocity.X + point.Position.Y*velocity.Y); // = Ox*Vx*t + Oy*Vy*t
-            }
-          }
-
-          matrix = m.ToMatrix();
-        }
-        else // otherwise, nothing is locked
-        {
-          Matrix4 m = new Matrix4();
-          constSum = new double[4];
-          velocity = new Vector2(); // ensure 'velocity' is assigned, to pacify the compiler
-
-          foreach(Observation observation in unit.Children.OfType<Observation>())
-          {
-            double time = observation.Time.TotalSeconds, timeSqr = time*time;
-            BearingObservation bearing = observation as BearingObservation;
-            if(bearing != null)
-            {
-              BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-              Vector2 bearingLine = bearing.Vector;
-              double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-
-              m.M00 += sySqr;      // Ax*(Sy^2)
-              m.M01 += -sxy;       // -Ay*(Sx*Sy)
-              m.M02 += sySqr*time; // +Vx*(Sy^2*t)
-              m.M03 += -sxy*time;  // -Vy*(Sx*Sy*t)
-              constSum[0] += observerPosition.X*sySqr - observerPosition.Y*sxy; // = Px*Sy^2 - Py*Sx*Sy
-
-              m.M10 += -sxy;        // -Ax*(Sx*Sy)
-              m.M11 += sxSqr;       // +Ay*(Sx^2)
-              m.M12 += -time*sxy;   // -Vx*(Sx*Sy*t)
-              m.M13 += time*sxSqr;  // +Vy*(Sx^2*t)
-              constSum[1] += observerPosition.Y*sxSqr - observerPosition.X*sxy; // = Py*Sx^2 - Px*Sx*Sy
-
-              m.M20 += time*sySqr;    // Ax*(Sy^2*t)
-              m.M21 += -time*sxy;     // -Ay*(Sx*Sy*t)
-              m.M22 += timeSqr*sySqr; // +Vx*(Sy^2*t^2)
-              m.M23 += -timeSqr*sxy;  // -Vy*(Sx*Sy*t^2)
-              constSum[2] += observerPosition.X*time*sySqr - observerPosition.Y*time*sxy; // = Px*Sy^2*t - Py*Sx*Sy*t
-
-              m.M30 += -time*sxy;     // -Ax*(Sx*Sy*t)
-              m.M31 += time*sxSqr;    // +Ay*(Sx^2*t)
-              m.M32 += -timeSqr*sxy;  // -Vx*(Sx*Sy*t^2)
-              m.M33 += timeSqr*sxSqr; // +Vy*(Sx^2*t^2)
-              constSum[3] += observerPosition.Y*time*sxSqr - observerPosition.X*time*sxy; // = Py*Sx^2*t - Px*Sx*Sy*t
-            }
-
-            PointObservation point = observation as PointObservation;
-            if(point != null)
-            {
-              m.M00 += 1;    // Ax
-              m.M02 += time; // +Vx*t
-              constSum[0] += point.Position.X; // = Ox
-
-              m.M11 += 1;    // Ay
-              m.M13 += time; // +Vy*t
-              constSum[1] += point.Position.Y; // = Oy
-
-              m.M20 += time;    // Ax*t
-              m.M22 += timeSqr; // +Vx*t^2
-              constSum[2] += time*point.Position.X; // = Ox*t
-
-              m.M31 += time;    // Ay*t
-              m.M33 += timeSqr; // +Vy*t^2
-              constSum[3] += time*point.Position.Y; // = Oy*t
-            }
-          }
-
-          matrix = m.ToMatrix();
-        }
-
-        try
-        {
-          // now that we have our matrix, we'll try to solve it via LU decomposition. other methods would also work
-          Matrix values = new LUDecomposition(matrix).Solve(new Matrix(constSum, 1));
-
-          position = new BoardPoint(values[0, 0], values[1, 0]);
-          if(matrix.Width == 4) // if we have the velocity as two variables...
-          {
-            velocity = new Vector2(values[2, 0], values[3, 0]); // construct it from them directly
-          }
-          else if(matrix.Width == 3) // if we have the velocity as a normal times a speed...
-          {
-            velocity *= values[2, 0]; // multiply the normal by the speed
-          }
-          if(velocity.Length < 0.000001) velocity = Vector2.Zero; // GDI+ crashes when rendering short lines, so avoid small speeds
-
-          return true;
-        }
-        catch(InvalidOperationException) // the matrix was singular, and couldn't be solved
-        {
-          position = new BoardPoint();
-          return false;
-        }
-      }
-
-      bool SolveQP(out BoardPoint position, out Vector2 velocity)
-      {
-        // this method handles three cases for bearing observations:
-        // 1. if nothing is locked, then we minimize cross(S) · (A+V*t-P) for each observation, where S is the normalized bearing vector
-        //    (known), A is the target position (unknown), V is the target velocity (unknown), and P is the observer position (known), for
-        //    a total of 4 unknowns (two per unknown point/vector). cross(X) returns a vector perpendicular to X.
-        //
-        // 2. if only course is locked, we can minimize cross(S) · (A+V*s*t-P) where V is a normalized constant vector and s is a new
-        //    scalar variable (3 unknowns)
-        //
-        // 3. if both course and speed are locked, then we minimize cross(S) · (A+V*t-P) where V is a non-normalized constant vector
-        //    (2 unknowns)
-        //
-        // if only speed is locked, we can minimize cross(S) · (A+V*s*t-P) where s is a constant and V is constrained to be normalized.
-        // unfortunately, that would be a quadratic constraint, and cannot be solved with quadratic programming, which allows only linear
-        // constraints
-        //
-        // the above formulas are subject to the error in which it places the target on a reciprocal bearing (since it's just the other
-        // half of the same mathematical line). to deal with this, we add constrain S · (A+V*t-P) to be non-negative. this has the result
-        // of ensuring that it places the target in the direction in which the bearing ray points
-        //
-        // for point observations, we try to minimize |A+V*t-O| in cases 1 and 3, and |A+V*s*t-O| in case 2 (where O is the observation
-        // point)
-        //
-        // in all cases, we actually minimize the square of the error
-        //
-        // in case 1 and 3, the error is cross(S) · (A+V*t-P) = -Sy(Ax+Vx*t-Px) + Sx(Ay+Vy*t-Py) (where Vx and Vy are either variables or
-        // constansts). we square this to get (-Sy(Ax+Vx*t-Px) + Sx(Ay+Vy*t-Py))^2, which expands to a rather massive equation. our goal
-        // in quadratic programming is to simply find the coefficients of all the variables and products of two variables. for instance,
-        // given the formula a*x^2 + b*x + c*d*x*y - e*y^2 + f, for variables x and y, we would have the following: x^2 whose coefficient
-        // is a, x whose coefficient is b, x*y whose coefficient is c*d, and y^2 whose coefficient is -e. we can ignore all terms that
-        // don't involve any variables, since they merely offset the solution by some constant and don't affect the values of the
-        // variables that correspond to the minimum.
-        InteriorPointSolver solver = new InteriorPointSolver();
-        UnitShape unit = GetSelectedUnit();
-
-        try
-        {
-          if(!form.LockCourse)
-          {
-            if(form.LockSpeed) throw new InvalidOperationException();
-
-            // finding the coefficients for case 1 bearing observations produces:
-            // Ax:    Py*Sx*Sy - Px*Sy^2
-            // Ax^2:  0.5 * Sy^2
-            // Ax*Ay: -Sx * Sy
-            // Ax*Vx: t * Sy^2
-            // Ax*Vy: -Sx * Sy * t
-            // Ay:    Px*Sx*Sy - Py*Sx^2
-            // Ay^2:  0.5 * Sx^2
-            // Ay*Vx: -Sx * Sy * t
-            // Ay*Vy: t * Sx^2
-            // Vx:    Py*Sx*Sy*t - Px*t*Sy^2
-            // Vx^2:  0.5 * Sy^2 * t^2
-            // Vx*Vy: -Sx * Sy * t^2
-            // Vy:    Px*Sx*Sy*t - Py*t*Sx^2
-            // Vy^2:  0.5 * Sx^2 * t^2
-            //
-            // for point observations, we get:
-            // Ax:    -Ox
-            // Ax^2:  0.5
-            // Ax*Vx: t
-            // Ay:    -Oy
-            // Ay^2:  0.5
-            // Ay*Vy: t
-            // Vx:    -Ox*t
-            // Vx^2:  0.5 * t^2
-            // Vy:    -Oy*t
-            // Vy^2:  0.5 * t^2
-            int iax, iay, ivx, ivy;
-            solver.AddVariable("ax", out iax);
-            solver.AddVariable("ay", out iay);
-            solver.AddVariable("vx", out ivx);
-            solver.AddVariable("vy", out ivy);
-
-            double ax=0, axSqr=0, axay=0, axvx=0, axvy=0, ay=0, aySqr=0, ayvx=0, ayvy=0, vx=0, vxSqr=0, vxvy=0, vy=0, vySqr=0;
-            foreach(Observation observation in unit.Children.OfType<Observation>())
-            {
-              double time = observation.Time.TotalSeconds, timeSqr = time*time;
-
-              BearingObservation bearing = observation as BearingObservation;
-              if(bearing != null)
-              {
-                BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-                Vector2 bearingLine = bearing.Vector;
-                double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-                double sxyt = sxy * time;
-
-                ax    += observerPosition.Y * sxy - observerPosition.X * sySqr; // py*sx*sy - px*sy^2
-                axSqr += 0.5 * sySqr; // 0.5 * sy^2
-                axay  -= sxy; // -sx*sy
-                axvx  += time * sySqr; // t * sy^2
-                axvy  -= sxyt; // -sx*sy*t
-                ay    += observerPosition.X * sxy - observerPosition.Y * sxSqr; // px*sx*sy - py*sx^2
-                aySqr += 0.5 * sxSqr; // 0.5 * sx^2
-                ayvx  -= sxyt; // -sx*sy*t
-                ayvy  += time * sxSqr; // t*sx^2
-                vx    += observerPosition.Y * sxyt - observerPosition.X * time * sySqr; // py*sx*sy*t - px*t*sy^2
-                vxSqr += 0.5 * sySqr * timeSqr; // 0.5 * sy^2 * t^2
-                vxvy  -= sxy * timeSqr; // -sx * sy * t^2
-                vy    += observerPosition.X * sxyt - observerPosition.Y * time * sxSqr; // px*sx*sy*t - py*t*sx^2
-                vySqr += 0.5 * sxSqr * timeSqr; // Vy^2: 0.5 * sx^2 * t^2
-
-                // Ax*sx + Ay*sy + sx*t*Vx + sy*t*Vy >= px*sx + py*sy
-                int row;
-                solver.AddRow(bearing, out row);
-                solver.SetCoefficient(row, iax, bearingLine.X);
-                solver.SetCoefficient(row, iay, bearingLine.Y);
-                solver.SetCoefficient(row, ivx, bearingLine.X * time);
-                solver.SetCoefficient(row, ivy, bearingLine.Y * time);
-                solver.SetBounds(row, observation.Position.X*bearingLine.X + observation.Position.Y*bearingLine.Y,
-                                 Rational.PositiveInfinity);
-              }
-
-              PointObservation point = observation as PointObservation;
-              if(point != null)
-              {
-                ax    -= observation.Position.X;
-                axSqr += 0.5;
-                axvx  += time;
-                ay    -= observation.Position.Y;
-                ayvy  += time;
-                aySqr += 0.5;
-                vx    -= observation.Position.X * time;
-                vy    -= observation.Position.Y * time;
-                vxSqr += 0.5 * timeSqr;
-                vySqr += 0.5 * timeSqr;
-              }
-            }
-
-            int goal;
-            solver.AddRow("error", out goal);
-            solver.SetCoefficient(goal, iax, ax);
-            solver.SetCoefficient(goal, axSqr, iax, iax);
-            solver.SetCoefficient(goal, axay, iax, iay);
-            solver.SetCoefficient(goal, axvx, iax, ivx);
-            solver.SetCoefficient(goal, axvy, iax, ivy);
-            solver.SetCoefficient(goal, iay, ay);
-            solver.SetCoefficient(goal, aySqr, iay, iay);
-            solver.SetCoefficient(goal, ayvx, iay, ivx);
-            solver.SetCoefficient(goal, ayvy, iay, ivy);
-            solver.SetCoefficient(goal, ivx, vx);
-            solver.SetCoefficient(goal, vxSqr, ivx, ivx);
-            solver.SetCoefficient(goal, vxvy, ivx, ivy);
-            solver.SetCoefficient(goal, ivy, vy);
-            solver.SetCoefficient(goal, vySqr, ivy, ivy);
-            solver.AddGoal(goal, 0, true);
-
-            ILinearSolution solution = solver.Solve(new InteriorPointSolverParams());
-            if(solution.Result == LinearResult.Optimal || solution.Result == LinearResult.Feasible)
-            {
-              position = new BoardPoint((double)solution.GetValue(iax), (double)solution.GetValue(iay));
-              velocity = new Vector2((double)solution.GetValue(ivx), (double)solution.GetValue(ivy));
-              if(velocity.Length < 0.000001) velocity = Vector2.Zero; // GDI+ crashes when rendering short lines, so avoid small speeds
-              return true;
-            }
-          }
-          else if(!form.LockSpeed)
-          {
-            // in case 2, the error equations are a bit different, as they include a speed variable. for bearings, they work out as follows:
-            // Ax:    Py*Sx*Sy - Px*Sy^2
-            // Ax^2:  0.5 * Sy^2
-            // Ax*Ay: -Sx * Sy
-            // Ax*s:  Vx*t*Sy^2 - Vy*t*Sx*Sy
-            // Ay:    Px*Sx*Sy - Py*Sx^2
-            // Ay^2:  0.5 * Sx^2
-            // Ay*s:  Vy*t*Sx^2 - Vx*t*Sx*Sy
-            // s:     t * (Py*Sx*Sy*Vx + Px*Sx*Sy*Vy - Px*Vx*Sy^2 - Py*Vy*Sx^2) ***
-            // s^2:   0.5 * t^2 * (Sy^2*Vx^2 - Sx*Sy*Vx*Vy + Sx^2*Vy^2)
-            //
-            // for point observations, we get:
-            // Ax:   -Ox
-            // Ax^2: 0.5
-            // Ax*s: Vx * t
-            // Ay:   -Oy
-            // Ay^2: 0.5
-            // Ay*s: Vy * t
-            // s:    -t * (Ox*Vx + Oy*Vy)
-            // s^2:  0.5 * t^2 * (Vx^2 + Vy^2)
-            int iax, iay, ispeed;
-            solver.AddVariable("ax", out iax);
-            solver.AddVariable("ay", out iay);
-            solver.AddVariable("speed", out ispeed);
-
-            velocity = this.velocity.Normal;
-            double ax=0, axSqr=0, axay=0, axs=0, ay=0, aySqr=0, ays=0, s=0, sSqr=0;
-            foreach(Observation observation in unit.Children.OfType<Observation>())
-            {
-              double time = observation.Time.TotalSeconds;
-
-              BearingObservation bearing = observation as BearingObservation;
-              if(bearing != null)
-              {
-                BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-                Vector2 bearingLine = bearing.Vector;
-                double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-
-                ax    += observerPosition.Y * sxy - observerPosition.X * sySqr; // py*sx*sy - px*sy^2
-                axSqr += 0.5 * sySqr; // 0.5 * sy^2
-                axay  -= sxy; // -sx*sy
-                axs   += velocity.X*time*sySqr - velocity.Y*time*sxy; // Vx*t*Sy^2 - Vy*t*Sx*Sy
-                ay    += observerPosition.X * sxy - observerPosition.Y * sxSqr; // px*sx*sy - py*sx^2
-                aySqr += 0.5 * sxSqr; // 0.5 * sx^2
-                ays   += velocity.Y*time*sxSqr - velocity.X*time*sxy;
-                s     += time * (velocity.X * (observation.Position.Y*sxy - observation.Position.X*sySqr) +
-                                 velocity.Y * (observation.Position.X*sxy - observation.Position.Y*sxSqr));
-                sSqr  += 0.5 * time*time * (sySqr*velocity.X*velocity.X + sxSqr*velocity.Y*velocity.Y - sxy*velocity.X*velocity.Y);
-
-                // Ax*sx + Ay*sy + sx*t*s*Vx + sy*t*s*Vy >= px*sx + py*sy
-                int row;
-                solver.AddRow(bearing, out row);
-                solver.SetCoefficient(row, iax, bearingLine.X);
-                solver.SetCoefficient(row, iay, bearingLine.Y);
-                solver.SetCoefficient(row, ispeed, time * (bearingLine.X*velocity.X + bearingLine.Y*velocity.Y));
-                solver.SetBounds(row, observation.Position.X*bearingLine.X + observation.Position.Y*bearingLine.Y,
-                                 Rational.PositiveInfinity);
-              }
-
-              PointObservation point = observation as PointObservation;
-              if(point != null)
-              {
-                ax    -= observation.Position.X;
-                axSqr += 0.5;
-                axs   += velocity.X * time;
-                ay    -= observation.Position.Y;
-                ays   += velocity.Y * time;
-                aySqr += 0.5;
-                s     -= time * (observation.Position.X*velocity.X + observation.Position.Y*velocity.Y);
-                sSqr  += 0.5 * time*time * (velocity.X*velocity.X + velocity.Y*velocity.Y);
-              }
-            }
-
-            int goal;
-            solver.AddRow("error", out goal);
-            solver.SetCoefficient(goal, iax, ax);
-            solver.SetCoefficient(goal, axSqr, iax, iax);
-            solver.SetCoefficient(goal, axay, iax, iay);
-            solver.SetCoefficient(goal, axs, iax, ispeed);
-            solver.SetCoefficient(goal, iay, ay);
-            solver.SetCoefficient(goal, aySqr, iay, iay);
-            solver.SetCoefficient(goal, ays, iay, ispeed);
-            solver.SetCoefficient(goal, ispeed, s);
-            solver.SetCoefficient(goal, sSqr, ispeed, ispeed);
-            solver.AddGoal(goal, 0, true);
-
-            ILinearSolution solution = solver.Solve(new InteriorPointSolverParams());
-            if(solution.Result == LinearResult.Optimal || solution.Result == LinearResult.Feasible)
-            {
-              position = new BoardPoint((double)solution.GetValue(iax), (double)solution.GetValue(iay));
-              velocity *= (double)solution.GetValue(ispeed);
-              if(velocity.Length < 0.000001) velocity = Vector2.Zero; // GDI+ crashes when rendering short lines, so avoid small speeds
-              return true;
-            }
-          }
-          else
-          {
-            // in case 3, for bearings, we get:
-            // Ax:    Py*Sx*Sy - Px*Sy^2 - Sx*Sy*Vy*t + Sy^2*Vx*t
-            // Ax^2:  0.5 * Sy^2
-            // Ax*Ay: -Sx*Sy
-            // Ay:    Px*Sx*Sy - Py*Sx^2 - Sx*Sy*Vx*t + Sx^2*Vy*t
-            // Ay^2:  0.5 * Sx^2
-            // 
-            // for point observations, we get:
-            // Ax: Vx*t - Ox
-            // Ay: Vy*t - Oy
-            // Ax^2: 0.5
-            // Ay^2: 0.5
-            int iax, iay;
-            solver.AddVariable("ax", out iax);
-            solver.AddVariable("ay", out iay);
-
-            velocity = this.velocity;
-            double ax=0, axSqr=0, axay=0, ay=0, aySqr=0;
-            foreach(Observation observation in unit.Children.OfType<Observation>())
-            {
-              double time = observation.Time.TotalSeconds;
-
-              BearingObservation bearing = observation as BearingObservation;
-              if(bearing != null)
-              {
-                BoardPoint observerPosition = bearing.GetEffectiveObserverPosition();
-                Vector2 bearingLine = bearing.Vector;
-                double sxy = bearingLine.X*bearingLine.Y, sxSqr = bearingLine.X*bearingLine.X, sySqr = bearingLine.Y*bearingLine.Y;
-
-                ax    += observerPosition.Y*sxy - observerPosition.X*sySqr - time * (sxy*velocity.Y - sySqr*velocity.X);
-                axSqr += 0.5 * sySqr; // 0.5 * sy^2
-                axay  -= sxy; // -sx*sy
-                ay    += observerPosition.X*sxy - observerPosition.Y*sxSqr - time * (sxy*velocity.X - sxSqr*velocity.Y);
-                aySqr += 0.5 * sxSqr; // 0.5 * sx^2
-
-                // Ax*sx + Ay*sy >= px*sx + py*sy - sx*t*Vx - sy*t*Vy
-                int row;
-                solver.AddRow(bearing, out row);
-                solver.SetCoefficient(row, iax, bearingLine.X);
-                solver.SetCoefficient(row, iay, bearingLine.Y);
-                solver.SetBounds(row, observation.Position.X*bearingLine.X + observation.Position.Y*bearingLine.Y -
-                                 time * (bearingLine.X*velocity.X + bearingLine.Y*velocity.Y), Rational.PositiveInfinity);
-              }
-
-              PointObservation point = observation as PointObservation;
-              if(point != null)
-              {
-                ax    += velocity.X*time - observation.Position.X;
-                axSqr += 0.5;
-                ay    += velocity.Y*time - observation.Position.Y;
-                aySqr += 0.5;
-              }
-            }
-
-            int goal;
-            solver.AddRow("error", out goal);
-            solver.SetCoefficient(goal, iax, ax);
-            solver.SetCoefficient(goal, axSqr, iax, iax);
-            solver.SetCoefficient(goal, axay, iax, iay);
-            solver.SetCoefficient(goal, iay, ay);
-            solver.SetCoefficient(goal, aySqr, iay, iay);
-            solver.AddGoal(goal, 0, true);
-
-            ILinearSolution solution = solver.Solve(new InteriorPointSolverParams());
-            if(solution.Result == LinearResult.Optimal || solution.Result == LinearResult.Feasible)
-            {
-              position = new BoardPoint((double)solution.GetValue(iax), (double)solution.GetValue(iay));
-              return true;
-            }
-          }
-        }
-        catch(InvalidModelDataException) { } // if the model isn't convex, just fail
-
-        position = new BoardPoint();
-        velocity = new Vector2();
-        return false;
       }
 
       void UpdateTMASolution(UnitShape unit)
@@ -1587,65 +1551,60 @@ namespace Maneubo
 
       void form_AutoSolve(object sender, EventArgs e)
       {
-        BoardPoint position;
-        Vector2 velocity;
+        double? minCourse = form.MinCourse, maxCourse = form.MaxCourse, minSpeed = form.MinSpeed, maxSpeed = form.MaxSpeed;
+        if(minSpeed.HasValue && maxSpeed.HasValue && minSpeed.Value > maxSpeed.Value) Utility.Swap(ref minSpeed, ref maxSpeed);
 
-        // except for the case where only speed is locked, we can first attempt a linear least squares solution. in reality, we also have
-        // linear inequality constraints that it must adhere to (in particular, that it's using the bearing rays and not any reciprocal
-        // bearing rays), but it often gets a solution that happens to comply with the constraints. we'll check the solution against the
-        // constraints, and if the constraints are violated, we'll invoke a more complex solver. (also, if only speed is locked, we must
-        // invoke a more complex solver.) this may not not be perfect, as it might be the case that a positional observation mixed in can
-        // pull the solution in the right direction enough to cause it to pass the check below, despite the solution being non-optimal
-        // against the bearing lines. (i'm not sure of this.) but if so, it should be rare enough that we can disregard it for now.
-        //
-        // TODO: if we decide to keep the QP implementation, then we can just use it all the time. no need, really, to use the least
-        // squares solution at all. on the other hand, the least squares solution can usually generate a result when the solution is
-        // ambiguous, in which case we might want to use it as a backup to the QP algorithm, if the user doesn't mind
-        bool solutionSucceeded;
-        if(form.LockCourse || !form.LockSpeed)
+        // there's a course range only if there are two course values given. there's a speed range if there is one speed value or two
+        // different speed values
+        bool courseRange = minCourse.HasValue && maxCourse.HasValue && minCourse.Value != maxCourse.Value;
+        bool speedRange  = (minSpeed.HasValue ^ maxSpeed.HasValue) || minSpeed.HasValue && minSpeed.Value != maxSpeed.Value;
+        double? course = courseRange ? (double?)null : minCourse ?? maxCourse, speed = speedRange ? (double?)null : minSpeed ?? maxSpeed;
+
+        // set the initial position and speed. use the center of the speed range if there's a maximum, or a bit more than the minimum if
+        // there is one. otherwise, if there's an exact speed, use that. otherwise, use the current speed
+        double[] point = new double[5];
+        point[0] = position.X;
+        point[1] = position.Y;
+        point[4] = speedRange ?
+          (maxSpeed.HasValue ? ((minSpeed ?? 0) + maxSpeed.Value)*0.5 : (minSpeed ?? 0)+1) : speed ?? velocity.Length;
+
+        // set the initial course (normalized velocity). use the center of the course range if there is one, taking care to handle
+        // ranges that span zero (e.g. 350 to 10). otherwise, use the exact course if it's given. otherwise, use the current course
+        Vector2 normalVelocity = new Vector2(1, 0).Rotated(
+          courseRange ? SwapBearing((minCourse.Value + maxCourse.Value - (minCourse.Value <= maxCourse.Value ? 0 : Math.PI*2)) * 0.5) :
+          course.HasValue ? SwapBearing(course.Value) : (velocity == Vector2.Zero ? 0 : velocity.Angle));
+        point[2] = normalVelocity.X;
+        point[3] = normalVelocity.Y;
+
+        ConstrainedMinimizer minimizer = new ConstrainedMinimizer(new RangeErrorFunction(GetSelectedUnit()));
+
+        // if there's a speed range, set it. otherwise, if there's an exact speed, set that. otherwise, just enforce that it's non-negative
+        if(speedRange) minimizer.SetBounds(4, minSpeed ?? 0, maxSpeed ?? double.PositiveInfinity);
+        else minimizer.SetBounds(4, speed ?? 0, speed ?? double.PositiveInfinity);
+
+        minimizer.AddConstraint(new NormalizationConstraint(5)); // constrain the course vector to be normalized
+        if(courseRange || course.HasValue) // if the course angle is constrained...
         {
-          solutionSucceeded = SolveLeastSquares(out position, out velocity);
-          if(solutionSucceeded) // if the solution succeeded, check it against the constraints
-          {
-            foreach(BearingObservation bearing in GetSelectedUnit().Children.OfType<BearingObservation>())
-            {
-              // if we take the dot product between the bearing line and the vector to the target, we get the cosine of the angle between
-              // them times their magnitudes. what really matters is the sign of the result. for angles from -90 to +90, the cosine of the
-              // angle will be non-negative. this represents the area in the direction that the bearing line points (or perpendicular to
-              // it). if the answer is negative, it represents the area away from which the bearing line points, meaning that the solution
-              // may have put the target on a reciprocal bearing line. it may also mean that the best fit just happened to have one point
-              // on the wrong side of the observer. we can't tell these apart, so we need to invoke a solver that can handle constraints
-              BoardPoint targetPos = position + velocity*bearing.Time.TotalSeconds;
-              if(bearing.Vector.DotProduct(targetPos - bearing.GetEffectiveObserverPosition()) < 0)
-              {
-                solutionSucceeded = SolveQP(out position, out velocity); // try using a quadratic programming solver
-                break;
-              }
-            }
-          }
-        }
-        else
-        {
-          MessageBox.Show("Auto TMA with only speed locked is not supported yet. Either unlock speed or lock both speed and course.",
-                          "Not implemented", MessageBoxButtons.OK, MessageBoxIcon.Error);
-          solutionSucceeded = false;
-          goto done;
+          minimizer.AddConstraint(new AngleRangeConstraint(5, minCourse ?? course.Value, maxCourse ?? course.Value));
         }
 
-        if(!solutionSucceeded)
+        try
         {
-          MessageBox.Show("Unable to find a single TMA solution. More or better observational data are needed.", "No TMA solution",
-                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+          minimizer.Minimize(point);
         }
-        else
+        catch(ArgumentException) { } // the problem became ill-behaved. usually, a good solution has been found by that point, so use it
+        catch(MinimumNotFoundException)
         {
-          this.position = position;
-          this.velocity = velocity;
-          OnArrowMoved();
+          MessageBox.Show("A solution may exist, but it could not be found. Try moving the TMA bar or using different parameters.",
+                          "Optimization failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
         }
 
-        done:
-        Board.FindForm().Select();
+        position = new BoardPoint(point[0], point[1]);
+        velocity = new Vector2(point[2], point[3]) * point[4];
+        if(velocity.LengthSqr < 0.0001) velocity = Vector2.Zero; // GDI+ crashes sometimes drawing short lines, so avoid small velocities
+        OnArrowMoved();
+        Board.FindForm().Select(); // give focus back to the main form
       }
 
       void form_CourseChanged(object sender, EventArgs e)
@@ -1660,6 +1619,64 @@ namespace Maneubo
       void form_FormClosed(object sender, FormClosedEventArgs e)
       {
         if(Board.SelectedTool == this) Board.SelectedTool = Board.PointerTool;
+      }
+
+      void form_Optimize(object sender, EventArgs e)
+      {
+        try
+        {
+          if(form.LockSpeed)
+          {
+            if(form.LockCourse || velocity.LengthSqr < 0.0001)
+            {
+              double[] point = new double[] { position.X, position.Y };
+              Minimize.BFGS(new VelocityErrorFunction(GetSelectedUnit(), velocity), point);
+              position.X = point[0];
+              position.Y = point[1];
+            }
+            else
+            {
+              double[] point = new double[] { position.X, position.Y, velocity.Normal.X, velocity.Normal.Y };
+              ConstrainedMinimizer minimizer = new ConstrainedMinimizer(new SpeedErrorFunction(GetSelectedUnit(), velocity.Length));
+              minimizer.AddConstraint(new NormalizationConstraint(4)); // constrain the course vector to be normalized
+              try { minimizer.Minimize(point); }
+              catch(ArgumentException) { } // the problem became ill-behaved, but a good solution has probably been found anyway, so use it
+              position.X = point[0];
+              position.Y = point[1];
+              velocity   = new Vector2(point[2], point[3]) * velocity.Length;
+            }
+          }
+          else if(form.LockCourse)
+          {
+            double[] point = new double[] { position.X, position.Y, velocity.Length };
+            ConstrainedMinimizer minimizer = new ConstrainedMinimizer(new CourseErrorFunction(GetSelectedUnit(), velocity));
+            minimizer.SetBounds(2, 0, double.PositiveInfinity); // constrain the speed to be non-negative
+            try { minimizer.Minimize(point); }
+            catch(ArgumentException) { } // the problem became ill-behaved, but a good solution has probably been found anyway, so use it
+            position.X = point[0];
+            position.Y = point[1];
+            velocity = point[2] <= 0 ? Vector2.Zero : velocity.Normalized(point[2]);
+          }
+          else
+          {
+            double[] point = new double[] { position.X, position.Y, velocity.X, velocity.Y };
+            Minimize.BFGS(new ErrorFunction(GetSelectedUnit()), point);
+            position.X = point[0];
+            position.Y = point[1];
+            velocity.X = point[2];
+            velocity.Y = point[3];
+          }
+        }
+        catch(MinimumNotFoundException)
+        {
+          MessageBox.Show("A better solution may exist, but it could not be found. Try moving the TMA bar or using different parameters.",
+                          "Optimization failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          return;
+        }
+
+        if(velocity.LengthSqr < 0.0001) velocity = Vector2.Zero; // GDI+ crashes sometimes drawing short lines, so avoid small velocities
+        OnArrowMoved();
+        Board.FindForm().Select(); // give focus back to the main form
       }
 
       void form_SpeedChanged(object sender, EventArgs e)
@@ -2291,6 +2308,7 @@ namespace Maneubo
     public readonly AddLineToolClass AddLineTool;
     public readonly AddObservationToolClass AddObservationTool;
     public readonly AddUnitToolClass AddUnitTool;
+    public readonly InterceptToolClass InterceptTool;
     public readonly PointerToolClass PointerTool;
     public readonly SetupBackgroundToolClass SetupBackgroundTool;
     public readonly SetupMapProjectionClass SetupProjectionTool;
@@ -2344,18 +2362,22 @@ namespace Maneubo
       return unit;
     }
 
-    public static SpeedUnit GetAppropriateSpeedUnit(double metersPerSecond, UnitSystem system)
+    public static SpeedUnit GetAppropriateSpeedUnit(UnitSystem system)
     {
       SpeedUnit unit;
       switch(system)
       {
         case UnitSystem.Imperial: unit = SpeedUnit.MilesPerHour; break;
         case UnitSystem.Metric: unit = SpeedUnit.KilometersPerHour; break;
-        case UnitSystem.NauticalImperial:
-        case UnitSystem.NauticalMetric: unit = SpeedUnit.Knots; break;
+        case UnitSystem.NauticalImperial: case UnitSystem.NauticalMetric: unit = SpeedUnit.Knots; break;
         default: unit = SpeedUnit.MetersPerSecond; break;
       }
       return unit;
+    }
+
+    public static SpeedUnit GetAppropriateSpeedUnit(double metersPerSecond, UnitSystem system)
+    {
+      return GetAppropriateSpeedUnit(system);
     }
 
     public static string GetDistanceString(double meters, LengthUnit unit)
@@ -2378,6 +2400,11 @@ namespace Maneubo
     public static string GetSpeedString(double metersPerSecond, UnitSystem system)
     {
       return GetSpeedString(metersPerSecond, GetAppropriateSpeedUnit(metersPerSecond, system));
+    }
+
+    public static string GetTimeString(TimeSpan time)
+    {
+      return string.Format("{0}:{1:d2}:{2:d2}", (int)time.TotalHours, time.Minutes, time.Seconds);
     }
 
     protected override void Dispose(bool disposing)
@@ -2669,6 +2696,20 @@ namespace Maneubo
     internal static string GetLongitudeString(double value)
     {
       return GetLonLatString(value, "W", "E");
+    }
+
+    internal static string GetRoundedString(double value)
+    {
+      return GetRoundedString(value, 2);
+    }
+
+    internal static string GetRoundedString(double value, int decimals)
+    {
+      // if the absolute value is between zero and one, show enough decimal places to get the leading nonzero digit plus up to 'decimals'
+      // additional digits, so if 'decimals' is 2 then 0.123 shows as 0.12 while 0.000123 shows as 0.00012
+      double abs = Math.Abs(value);
+      if(abs > 0 && abs < 1) decimals += -(int)Math.Floor(Math.Log10(abs)) - 1;
+      return value.ToString("0." + new string('#', decimals));
     }
 
     internal string GetSpeedString(double metersPerSecond)
@@ -2964,20 +3005,6 @@ namespace Maneubo
       }
       if(suffix != null) str = str + " " + suffix;
       return str;
-    }
-
-    static string GetRoundedString(double value)
-    {
-      return GetRoundedString(value, 2);
-    }
-
-    static string GetRoundedString(double value, int decimals)
-    {
-      // if the absolute value is between zero and one, show enough decimal places to get the leading nonzero digit plus up to 'decimals'
-      // additional digits, so if 'decimals' is 2 then 0.123 shows as 0.12 while 0.000123 shows as 0.00012
-      double abs = Math.Abs(value);
-      if(abs > 0 && abs < 1) decimals += -(int)Math.Floor(Math.Log10(abs)) - 1;
-      return value.ToString("0." + new string('#', decimals));
     }
 
     static Color ParseColor(string xmlColor, Color defaultValue)

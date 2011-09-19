@@ -36,6 +36,7 @@ namespace Maneubo
         else if(e.KeyCode == Keys.T) tbTMA.PerformClick();
         else if(e.KeyCode == Keys.L) tbLine.PerformClick();
         else if(e.KeyCode == Keys.C) tbCircle.PerformClick();
+        else if(e.KeyCode == Keys.I) tbIntercept.PerformClick();
         else if(e.KeyCode == Keys.F3) tbUnitShape.ShowDropDown();
         else if(e.KeyCode == Keys.F4) tbWaypointType.ShowDropDown();
         else return;
@@ -255,6 +256,7 @@ namespace Maneubo
       else if(board.SelectedTool == board.TMATool) toolBarButton = tbTMA;
       else if(board.SelectedTool == board.AddLineTool) toolBarButton = tbLine;
       else if(board.SelectedTool == board.AddCircleTool) toolBarButton = tbCircle;
+      else if(board.SelectedTool == board.InterceptTool) toolBarButton = tbIntercept;
       else if(board.SelectedTool == board.SetupBackgroundTool) toolBarButton = tbSetBackground;
       else if(board.SelectedTool == board.SetupProjectionTool) toolBarButton = tbSetProjection;
       else throw new NotImplementedException();
@@ -396,6 +398,11 @@ namespace Maneubo
     void tbCircle_Click(object sender, EventArgs e)
     {
       board.SelectedTool = board.AddCircleTool;
+    }
+
+    void tbIntercept_Click(object sender, EventArgs e)
+    {
+      board.SelectedTool = board.InterceptTool;
     }
 
     void tbLine_Click(object sender, EventArgs e)

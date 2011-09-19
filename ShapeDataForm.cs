@@ -76,16 +76,8 @@ namespace Maneubo
       get
       {
         double direction;
-        if(!directionTextChanged)
-        {
-          direction = txtDirection.Tag == null ? 0 : (double)txtDirection.Tag;
-        }
-        else if(double.TryParse(txtDirection.Text.Trim(), out direction))
-        {
-          direction *= MathConst.DegreesToRadians;
-          while(direction < 0) direction += Math.PI*2;
-          while(direction >= Math.PI*2) direction -= Math.PI*2;
-        }
+        if(!directionTextChanged) direction = txtDirection.Tag == null ? 0 : (double)txtDirection.Tag;
+        else TryParseAngle(txtDirection.Text, out direction);
         return direction;
       }
     }
@@ -106,7 +98,7 @@ namespace Maneubo
       {
         double size;
         if(!sizeTextChanged) size = txtSize.Tag == null ? 0 : (double)txtSize.Tag;
-        else TryParseLength(txtSize.Text, out size);
+        else TryParseLength(txtSize.Text, unitSystem, out size);
         return size;
       }
     }
@@ -130,15 +122,15 @@ namespace Maneubo
     void btnOK_Click(object sender, EventArgs e)
     {
       double value;
-      if(directionTextChanged && !double.TryParse(txtDirection.Text.Trim(), out value))
+      if(directionTextChanged && !TryParseAngle(txtDirection.Text, out value))
       {
         if(string.IsNullOrEmpty(txtDirection.Text.Trim())) ShowRequiredMessage("Direction");
-        else ShowInvalidDirection(txtDirection.Text);
+        else ShowInvalidAngle(txtDirection.Text);
         txtDirection.Focus();
         return;
       }
 
-      if(sizeTextChanged && !TryParseLength(txtSize.Text, out value))
+      if(sizeTextChanged && !TryParseLength(txtSize.Text, unitSystem, out value))
       {
         if(string.IsNullOrEmpty(txtSize.Text.Trim())) ShowRequiredMessage("Size");
         else ShowInvalidLength(txtSize.Text);

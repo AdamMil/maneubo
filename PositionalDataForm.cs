@@ -18,8 +18,7 @@ namespace Maneubo
     {
       this.unitSystem = unitSystem;
 
-      txtTime.Text = string.Format("{0}:{1:d2}:{2:d2}",
-                                   (int)posData.Time.TotalHours, posData.Time.Minutes, posData.Time.Seconds);
+      txtTime.Text = ManeuveringBoard.GetTimeString(posData.Time);
       txtTime.Focus();
       txtTime.SelectAll();
 
@@ -115,30 +114,12 @@ namespace Maneubo
       relativePoint = relativeTo.Position;
     }
 
-    bool TryParseTime(string text, out TimeSpan time)
+    bool TryParseTime(string text, out TimeSpan timeSpan)
     {
-      Match m = timeRe.Match(text);
-      if(!m.Success)
-      {
-        time = new TimeSpan();
-        return false;
-      }
-      else
-      {
-        int hours, minutes, seconds;
-        int.TryParse(m.Groups["hours"].Value, out hours);
-        int.TryParse(m.Groups["minutes"].Value, out minutes);
-        int.TryParse(m.Groups["seconds"].Value, out seconds);
-        time = new TimeSpan(hours, minutes, seconds);
-
-        if(m.Groups["rel"].Success)
-        {
-          if(!previousTime.HasValue) return false;
-          else time = previousTime.Value + time;
-        }
-
-        return true;
-      }
+      bool relative;
+      if(!TryParseTime(text, out timeSpan, out relative) || relative && !previousTime.HasValue) return false;
+      if(relative) timeSpan += previousTime.Value;
+      return true;
     }
 
     void UpdateObservationPoint(ChangeTrackingTextBox txtBearing, ChangeTrackingTextBox txtDistance, Point2 fromPoint,
@@ -161,17 +142,14 @@ namespace Maneubo
       double value;
       if(txtBearing.WasChanged)
       {
-        if(double.TryParse(txtBearing.Text.Trim(), out value))
+        if(TryParseAngle(txtBearing.Text, out value))
         {
-          value *= MathConst.DegreesToRadians;
-          while(value < 0) value += Math.PI*2;
-          while(value >= Math.PI*2) value -= Math.PI*2;
           txtBearing.Tag = value;
         }
         else
         {
           if(string.IsNullOrEmpty(txtBearing.Text.Trim())) ShowRequiredMessage("Bearing");
-          else ShowInvalidDirection(txtBearing.Text);
+          else ShowInvalidAngle(txtBearing.Text);
           txtBearing.Focus();
           return false;
         }
@@ -179,7 +157,7 @@ namespace Maneubo
 
       if(txtDistance.WasChanged)
       {
-        if(TryParseLength(txtDistance.Text, out value))
+        if(TryParseLength(txtDistance.Text, unitSystem, out value))
         {
           txtDistance.Tag = value;
         }
@@ -200,16 +178,8 @@ namespace Maneubo
       TimeSpan time;
       if(!TryParseTime(txtTime.Text, out time))
       {
-        if(string.IsNullOrEmpty(txtTime.Text.Trim()))
-        {
-          ShowRequiredMessage("Time");
-        }
-        else
-        {
-          MessageBox.Show(txtTime.Text + " is not a valid time. You may specify a time as [hh:]mm[:ss]. If there was a previous " +
-                          "observation, you may prepend a + sign to indicate that the time should be interpreted relative to the " +
-                          "time of the previous observation.", "Invalid time", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
+        if(string.IsNullOrEmpty(txtTime.Text.Trim())) ShowRequiredMessage("Time");
+        else ShowInvalidTime(txtTime.Text, true);
         return;
       }
       else if(waypoint && time.TotalSeconds < 1)
@@ -258,8 +228,5 @@ namespace Maneubo
     readonly bool waypoint;
 
     Point2? posDataPoint;
-
-    static readonly Regex timeRe = new Regex(@"^\s*(?<rel>\+)?\s*(?:(?<hours>\d+):)?(?<minutes>\d+)(?::(?<seconds>\d+))?\s*$",
-                                             RegexOptions.IgnoreCase);
   }
 }

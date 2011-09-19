@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Windows.Forms;
 using AdamMil.Mathematics.Geometry;
 
 namespace Maneubo
@@ -16,7 +17,7 @@ namespace Maneubo
       this.unitSystem = unitSystem;
     }
 
-    public event EventHandler ApplySolution, AutoSolve, CourseChanged, SpeedChanged;
+    public event EventHandler ApplySolution, AutoSolve, CourseChanged, Optimize, SpeedChanged;
 
     public double Course
     {
@@ -52,6 +53,26 @@ namespace Maneubo
       set { chkLockSpeed.Checked = value; }
     }
 
+    public double? MinCourse
+    {
+      get { return ParseCourse(txtMinCourse); }
+    }
+
+    public double? MaxCourse
+    {
+      get { return ParseCourse(txtMaxCourse); }
+    }
+
+    public double? MinSpeed
+    {
+      get { return ParseSpeed(txtMinSpeed); }
+    }
+
+    public double? MaxSpeed
+    {
+      get { return ParseSpeed(txtMaxSpeed); }
+    }
+
     public void FocusCourse()
     {
       txtCourse.Focus();
@@ -72,6 +93,25 @@ namespace Maneubo
       LockSpeed = !LockSpeed;
     }
 
+    double? ParseSpeed(TextBox textBox)
+    {
+      double speed;
+      return TryParseSpeed(textBox.Text, unitSystem, out speed) ? (double?)speed : null;
+    }
+
+    bool ValidateSpeed(TextBox textBox)
+    {
+      double speed;
+      if(!string.IsNullOrEmpty(textBox.Text.Trim()) && !TryParseSpeed(textBox.Text, unitSystem, out speed))
+      {
+        ShowInvalidSpeed(textBox.Text);
+        textBox.Focus();
+        return false;
+      }
+
+      return true;
+    }
+
     void btnApply_Click(object sender, EventArgs e)
     {
       if(ApplySolution != null) ApplySolution(this, EventArgs.Empty);
@@ -79,7 +119,16 @@ namespace Maneubo
 
     void btnAuto_Click(object sender, EventArgs e)
     {
+      if(!ValidateCourse(txtMinCourse) || !ValidateCourse(txtMaxCourse) || !ValidateSpeed(txtMinSpeed) || !ValidateSpeed(txtMaxSpeed))
+      {
+        return;
+      }
       if(AutoSolve != null) AutoSolve(this, EventArgs.Empty);
+    }
+
+    void btnOptimize_Click(object sender, EventArgs e)
+    {
+      if(Optimize != null) Optimize(this, EventArgs.Empty);
     }
 
     void txtCourse_Validating(object sender, CancelEventArgs e)
@@ -101,7 +150,7 @@ namespace Maneubo
         }
         else
         {
-          ShowInvalidDirection(txtCourse.Text);
+          ShowInvalidAngle(txtCourse.Text);
           e.Cancel = true;
           return;
         }
@@ -135,5 +184,24 @@ namespace Maneubo
     }
 
     readonly UnitSystem unitSystem;
+
+    static double? ParseCourse(TextBox textBox)
+    {
+      double angle;
+      return TryParseAngle(textBox.Text, out angle) ? (double?)angle : null;
+    }
+
+    static bool ValidateCourse(TextBox textBox)
+    {
+      double angle;
+      if(!string.IsNullOrEmpty(textBox.Text.Trim()) && !TryParseAngle(textBox.Text, out angle))
+      {
+        ShowInvalidAngle(textBox.Text);
+        textBox.Focus();
+        return false;
+      }
+
+      return true;
+    }
   }
 }

@@ -57,6 +57,8 @@
       System.Windows.Forms.ToolStripMenuItem miPointObs;
       System.Windows.Forms.ToolStripMenuItem miBearingObs;
       System.Windows.Forms.ToolStripMenuItem miWaypoint;
+      System.Windows.Forms.ToolStripSeparator tbSep2;
+      System.Windows.Forms.ToolStripSeparator tbSep1;
       this.miRemoveBackground = new System.Windows.Forms.ToolStripMenuItem();
       this.miBoardOptions = new System.Windows.Forms.ToolStripMenuItem();
       this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
@@ -70,6 +72,7 @@
       this.tbTMA = new System.Windows.Forms.ToolStripButton();
       this.tbLine = new System.Windows.Forms.ToolStripButton();
       this.tbCircle = new System.Windows.Forms.ToolStripButton();
+      this.tbIntercept = new System.Windows.Forms.ToolStripButton();
       this.tbSetBackground = new System.Windows.Forms.ToolStripButton();
       this.tbSetProjection = new System.Windows.Forms.ToolStripButton();
       this.board = new Maneubo.ManeuveringBoard();
@@ -102,6 +105,8 @@
       miPointObs = new System.Windows.Forms.ToolStripMenuItem();
       miBearingObs = new System.Windows.Forms.ToolStripMenuItem();
       miWaypoint = new System.Windows.Forms.ToolStripMenuItem();
+      tbSep2 = new System.Windows.Forms.ToolStripSeparator();
+      tbSep1 = new System.Windows.Forms.ToolStripSeparator();
       menuStrip.SuspendLayout();
       statusStrip.SuspendLayout();
       this.toolStrip.SuspendLayout();
@@ -418,9 +423,12 @@
             this.tbUnitShape,
             this.tbAddObservation,
             this.tbWaypointType,
-            this.tbTMA,
             this.tbLine,
             this.tbCircle,
+            tbSep1,
+            this.tbIntercept,
+            this.tbTMA,
+            tbSep2,
             this.tbSetBackground,
             this.tbSetProjection});
       this.toolStrip.Location = new System.Drawing.Point(0, 24);
@@ -496,6 +504,15 @@
       this.tbCircle.Text = "Add Circle (C)";
       this.tbCircle.Click += new System.EventHandler(this.tbCircle_Click);
       // 
+      // tbIntercept
+      // 
+      this.tbIntercept.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbIntercept.Image = global::Maneubo.Properties.Resources.IconIntercept;
+      this.tbIntercept.Name = "tbIntercept";
+      this.tbIntercept.Size = new System.Drawing.Size(23, 22);
+      this.tbIntercept.Text = "Calculate Intercept (I)";
+      this.tbIntercept.Click += new System.EventHandler(this.tbIntercept_Click);
+      // 
       // tbSetBackground
       // 
       this.tbSetBackground.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
@@ -527,6 +544,16 @@
       this.board.StatusTextChanged += new System.EventHandler(this.board_StatusTextChanged);
       this.board.ToolChanged += new System.EventHandler(this.board_ToolChanged);
       this.board.BackgroundImageChanged += new System.EventHandler(this.board_BackgroundImageChanged);
+      // 
+      // tbSep2
+      // 
+      tbSep2.Name = "tbSep2";
+      tbSep2.Size = new System.Drawing.Size(6, 25);
+      // 
+      // tbSep1
+      // 
+      tbSep1.Name = "tbSep1";
+      tbSep1.Size = new System.Drawing.Size(6, 25);
       // 
       // MainForm
       // 
@@ -570,6 +597,7 @@
     private System.Windows.Forms.ToolStripButton tbTMA;
     private System.Windows.Forms.ToolStripMenuItem miBoardOptions;
     private System.Windows.Forms.ToolStripButton tbSetProjection;
+    private System.Windows.Forms.ToolStripButton tbIntercept;
   }
 }
 

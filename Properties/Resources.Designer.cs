@@ -102,6 +102,13 @@ namespace Maneubo.Properties {
             }
         }
         
+        internal static System.Drawing.Bitmap IconIntercept {
+            get {
+                object obj = ResourceManager.GetObject("IconIntercept", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
         internal static System.Drawing.Bitmap IconLand {
             get {
                 object obj = ResourceManager.GetObject("IconLand", resourceCulture);

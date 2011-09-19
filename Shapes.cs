@@ -895,17 +895,17 @@ namespace Maneubo
       get { return new Vector2(0, 1).Rotated(-Bearing); }
     }
 
+    public Line2 GetBearingLine()
+    {
+      return new Line2(GetEffectiveObserverPosition(), Vector);
+    }
+
     public BoardPoint GetEffectiveObserverPosition()
     {
       return Observer.GetPositionAt(Time);
     }
 
-    public Line2 GetBearingLine()
-    {
-      return new Line2(GetEffectiveObserverPosition(), new Vector2(0, 1).Rotated(-Bearing));
-    }
-
-    public override KeyValuePair<double,Handle> GetSelectionDistance(SysPoint point)
+    public override KeyValuePair<double, Handle> GetSelectionDistance(SysPoint point)
     {
       double distance;
       if(!ShouldRender)
