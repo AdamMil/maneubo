@@ -37,10 +37,10 @@
       System.Windows.Forms.Label lblDistance3;
       System.Windows.Forms.Label lblDegrees3;
       System.Windows.Forms.Label lblBearing3;
-      System.Windows.Forms.Button btnOK;
       System.Windows.Forms.Button btnCancel;
       System.Windows.Forms.GroupBox grpObservation;
       System.Windows.Forms.Label lblTime;
+      this.btnOK = new System.Windows.Forms.Button();
       this.txtTime = new System.Windows.Forms.TextBox();
       this.grpObserved = new System.Windows.Forms.GroupBox();
       this.txtObservedDistance = new Maneubo.ChangeTrackingTextBox();
@@ -60,7 +60,6 @@
       lblDistance3 = new System.Windows.Forms.Label();
       lblDegrees3 = new System.Windows.Forms.Label();
       lblBearing3 = new System.Windows.Forms.Label();
-      btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
       grpObservation = new System.Windows.Forms.GroupBox();
       lblTime = new System.Windows.Forms.Label();
@@ -162,14 +161,14 @@
       // 
       // btnOK
       // 
-      btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      btnOK.Location = new System.Drawing.Point(52, 298);
-      btnOK.Name = "btnOK";
-      btnOK.Size = new System.Drawing.Size(75, 23);
-      btnOK.TabIndex = 5;
-      btnOK.Text = "OK";
-      btnOK.UseVisualStyleBackColor = true;
-      btnOK.Click += new System.EventHandler(this.btnOK_Click);
+      this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+      this.btnOK.Location = new System.Drawing.Point(52, 298);
+      this.btnOK.Name = "btnOK";
+      this.btnOK.Size = new System.Drawing.Size(75, 23);
+      this.btnOK.TabIndex = 5;
+      this.btnOK.Text = "OK";
+      this.btnOK.UseVisualStyleBackColor = true;
+      this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
       // btnCancel
       // 
@@ -230,7 +229,6 @@
       this.txtObservedDistance.Name = "txtObservedDistance";
       this.txtObservedDistance.Size = new System.Drawing.Size(71, 20);
       this.txtObservedDistance.TabIndex = 7;
-      this.txtObservedDistance.WasChanged = false;
       this.txtObservedDistance.Leave += new System.EventHandler(this.txtObserved_Leave);
       // 
       // txtObservedBearing
@@ -239,7 +237,6 @@
       this.txtObservedBearing.Name = "txtObservedBearing";
       this.txtObservedBearing.Size = new System.Drawing.Size(71, 20);
       this.txtObservedBearing.TabIndex = 4;
-      this.txtObservedBearing.WasChanged = false;
       this.txtObservedBearing.Leave += new System.EventHandler(this.txtObserved_Leave);
       // 
       // grpObserver
@@ -262,7 +259,6 @@
       this.txtObserverDistance.Name = "txtObserverDistance";
       this.txtObserverDistance.Size = new System.Drawing.Size(71, 20);
       this.txtObserverDistance.TabIndex = 7;
-      this.txtObserverDistance.WasChanged = false;
       this.txtObserverDistance.Leave += new System.EventHandler(this.txtObserver_Leave);
       // 
       // txtObserverBearing
@@ -271,7 +267,6 @@
       this.txtObserverBearing.Name = "txtObserverBearing";
       this.txtObserverBearing.Size = new System.Drawing.Size(71, 20);
       this.txtObserverBearing.TabIndex = 4;
-      this.txtObserverBearing.WasChanged = false;
       this.txtObserverBearing.Leave += new System.EventHandler(this.txtObserver_Leave);
       // 
       // grpPrevious
@@ -294,7 +289,6 @@
       this.txtPreviousDistance.Name = "txtPreviousDistance";
       this.txtPreviousDistance.Size = new System.Drawing.Size(71, 20);
       this.txtPreviousDistance.TabIndex = 7;
-      this.txtPreviousDistance.WasChanged = false;
       this.txtPreviousDistance.Leave += new System.EventHandler(this.txtPrevious_Leave);
       // 
       // txtPreviousBearing
@@ -303,18 +297,17 @@
       this.txtPreviousBearing.Name = "txtPreviousBearing";
       this.txtPreviousBearing.Size = new System.Drawing.Size(71, 20);
       this.txtPreviousBearing.TabIndex = 4;
-      this.txtPreviousBearing.WasChanged = false;
       this.txtPreviousBearing.Leave += new System.EventHandler(this.txtPrevious_Leave);
       // 
       // PositionalDataForm
       // 
-      this.AcceptButton = btnOK;
+      this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
       this.ClientSize = new System.Drawing.Size(220, 327);
       this.Controls.Add(grpObservation);
-      this.Controls.Add(btnOK);
+      this.Controls.Add(this.btnOK);
       this.Controls.Add(btnCancel);
       this.Controls.Add(this.grpPrevious);
       this.Controls.Add(this.grpObserved);
@@ -351,5 +344,6 @@
     private System.Windows.Forms.GroupBox grpObserver;
     private System.Windows.Forms.GroupBox grpPrevious;
     private System.Windows.Forms.GroupBox grpObserved;
+    private System.Windows.Forms.Button btnOK;
   }
 }

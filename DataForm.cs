@@ -66,6 +66,7 @@ namespace Maneubo
           case "ft": unit = LengthUnit.Foot; break;
           case "km": unit = LengthUnit.Kilometer; break;
           case "kyd": unit = LengthUnit.Kiloyard; break;
+          case "m": unit = LengthUnit.Meter; break;
           case "mi": unit = LengthUnit.Mile; break;
           case "nm": case "nmi": unit = LengthUnit.NauticalMile; break;
           case "yd": unit = LengthUnit.Yard; break;
@@ -100,7 +101,7 @@ namespace Maneubo
           case "kn": case "kt": case "kts": unit = SpeedUnit.Knots; break;
           case "kph": unit = SpeedUnit.KilometersPerHour; break;
           case "mph": unit = SpeedUnit.MilesPerHour; break;
-          case "m/s": unit = SpeedUnit.MetersPerSecond; break;
+          case "mps": case "m/s": unit = SpeedUnit.MetersPerSecond; break;
           default:
             switch(unitSystem)
             {
@@ -140,7 +141,7 @@ namespace Maneubo
 
     static readonly Regex lengthRe = new Regex(@"^\s*(?<number>\d+|\d*[\.,]\d+)\s*(?<unit>ft|k(?:m|yd)|mi?|nmi?|yd)?\s*$",
                                                RegexOptions.IgnoreCase);
-    static readonly Regex speedRe = new Regex(@"^\s*(?<number>\d+|\d*[\.,]\d+)\s*(?<unit>k(?:n|ph|ts?)|m(?:\/s|ph))?\s*$",
+    static readonly Regex speedRe = new Regex(@"^\s*(?<number>\d+|\d*[\.,]\d+)\s*(?<unit>k(?:n|ph|ts?)|m(?:\/s|p[sh]))?\s*$",
                                               RegexOptions.IgnoreCase);
     static readonly Regex timeRe = new Regex(@"^\s*(?<rel>\+)?\s*(?:(?<hours>\d+):)?(?<minutes>\d+)(?::(?<seconds>\d+))?\s*$",
                                              RegexOptions.IgnoreCase);

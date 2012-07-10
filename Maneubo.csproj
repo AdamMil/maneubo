@@ -10,9 +10,8 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Maneubo</RootNamespace>
     <AssemblyName>Maneubo</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>
-    </TargetFrameworkProfile>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
@@ -34,12 +33,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.XML" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Include="AboutBox.cs">
       <SubType>Form</SubType>
@@ -168,6 +161,7 @@
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="ShapeDataForm.resx">
       <DependentUpon>ShapeDataForm.cs</DependentUpon>
@@ -210,6 +204,10 @@
       <Project>{D9724C65-C54A-4671-BA0B-40B0B38464DD}</Project>
       <Name>AdamMil.Collections</Name>
     </ProjectReference>
+    <ProjectReference Include="..\AdamMil.net\IO\AdamMil.IO.csproj">
+      <Project>{CEB9BC77-B63F-40A1-BEDE-7C32E9B90D55}</Project>
+      <Name>AdamMil.IO</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AdamMil.net\Mathematics\AdamMil.Mathematics.csproj">
       <Project>{BC146E65-29FA-4D05-89E2-CF485EBC86B8}</Project>
       <Name>AdamMil.Mathematics</Name>
@@ -218,6 +216,15 @@
       <Project>{29134637-6D08-432C-8161-9DEEE13C955D}</Project>
       <Name>AdamMil.Utilities</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Accessibility">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.XML" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

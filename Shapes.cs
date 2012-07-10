@@ -848,7 +848,7 @@ namespace Maneubo
       return timeStr;
     }
 
-    static readonly Regex timeRe = new Regex(@"^\s*(\d+)(?::(\d+(?::(\d+))?))?\s*$");
+    static readonly Regex timeRe = new Regex(@"^\s*(\d+)(?::(\d+)(?::(\d+))?)?\s*$");
   }
   #endregion
 

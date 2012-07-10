@@ -175,6 +175,17 @@ namespace Maneubo
 
     void btnOK_Click(object sender, EventArgs e)
     {
+      // if the user presses Enter, the Leave event of the textbox won't be raised, so we need to ensure that the same logic gets executed.
+      // first we'll ensure that the logic would succeed if executed. if not, then we abort
+      if(!Validate(txtObservedBearing, txtObservedDistance) || !Validate(txtObserverBearing, txtObserverDistance) ||
+         !Validate(txtPreviousBearing, txtPreviousDistance))
+      {
+        return;
+      }
+
+      // now that we know the Leave event should succeed, force it to be raised
+      btnOK.Focus();
+
       TimeSpan time;
       if(!TryParseTime(txtTime.Text, out time))
       {
@@ -203,11 +214,18 @@ namespace Maneubo
 
     void txtObserver_Leave(object sender, EventArgs e)
     {
-      if((txtObserverBearing.WasChanged || txtObserverDistance.WasChanged) && posDataPoint.HasValue)
+      if(txtObserverBearing.WasChanged || txtObserverDistance.WasChanged)
       {
-        UpdateObservationPoint(txtObserverBearing, txtObserverDistance, observerPoint.Value,
-                                txtObservedBearing, txtObservedDistance, observedPoint,
-                                txtPreviousBearing, txtPreviousDistance, previousPoint);
+        if(posDataPoint.HasValue)
+        {
+          UpdateObservationPoint(txtObserverBearing, txtObserverDistance, observerPoint.Value,
+                                 txtObservedBearing, txtObservedDistance, observedPoint,
+                                 txtPreviousBearing, txtPreviousDistance, previousPoint);
+        }
+        else
+        {
+          Validate(txtObserverBearing, txtObserverDistance);
+        }
       }
     }
 

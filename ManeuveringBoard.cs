@@ -9,6 +9,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Xml;
 using AdamMil.Collections;
+using AdamMil.IO;
 using AdamMil.Mathematics;
 using AdamMil.Mathematics.Geometry;
 using AdamMil.Mathematics.Optimization;
@@ -898,9 +899,9 @@ namespace Maneubo
             SysRect dotStackRect = new SysRect(0, 0, StackWidth, Math.Max(MinStackHeight, errors.Count*6 + Board.Font.Height + 8));
             using(Brush dimBrush = new SolidBrush(Color.FromArgb(192, 0, 0, 0))) graphics.FillRectangle(dimBrush, dotStackRect);
 
-            // the base error is 10 meters per pixel, but if the average error magnitude is greater than the available space, scale down by
+            // the base error is 20 meters per pixel, but if the average error magnitude is greater than the available space, scale down by
             // some integer amount to let them see better
-            const int BaseMPP = 10;
+            const int BaseMPP = 20;
             float errorScale = errors.Select(err => Math.Abs(err)).Average() * (1f/(StackWidth/2*BaseMPP));
             string scaleString;
             if(errorScale > 1)
@@ -962,11 +963,11 @@ namespace Maneubo
         None, Start, Middle, End
       }
 
-      #region AngleRangeConstraint
+      #region CourseConstraint
       /// <summary>Constrains a course to a particular range.</summary>
-      sealed class AngleRangeConstraint : IDifferentiableMDFunction
+      sealed class CourseConstraint : IDifferentiableMDFunction
       {
-        public AngleRangeConstraint(int arity, double min, double max)
+        public CourseConstraint(int arity, double min, double max)
         {
           this.arity = arity;
           this.min   = min;
@@ -1585,7 +1586,7 @@ namespace Maneubo
         minimizer.AddConstraint(new NormalizationConstraint(5)); // constrain the course vector to be normalized
         if(courseRange || course.HasValue) // if the course angle is constrained...
         {
-          minimizer.AddConstraint(new AngleRangeConstraint(5, minCourse ?? course.Value, maxCourse ?? course.Value));
+          minimizer.AddConstraint(new CourseConstraint(5, minCourse ?? course.Value, maxCourse ?? course.Value));
         }
 
         try

@@ -177,6 +177,7 @@
       this.Location = new System.Drawing.Point(180, 161);
       this.MaximizeBox = false;
       this.MaximumSize = new System.Drawing.Size(180, 9999);
+      this.MinimumSize = new System.Drawing.Size(180, 185);
       this.Name = "StopwatchForm";
       this.Text = "Stopwatch";
       this.ResumeLayout(false);
