@@ -192,7 +192,7 @@ namespace Maneubo
 
     internal string GetXmlId()
     {
-      return "u" + ID.ToInvariantString();
+      return "u" + ID.ToStringInvariant();
     }
 
     internal void SetBoard(ManeuveringBoard board)
@@ -362,7 +362,7 @@ namespace Maneubo
     internal string GetStatusText()
     {
       Vector2 vector = Vector;
-      return "Line: " + (ManeuveringBoard.SwapBearing(vector.Angle) * MathConst.RadiansToDegrees).ToString("f2") + "°, " +
+      return "Line: " + ManeuveringBoard.GetAngleString(ManeuveringBoard.SwapBearing(vector.Angle)) + ", " +
              Board.GetDistanceString(vector.Length);
     }
 
@@ -451,6 +451,11 @@ namespace Maneubo
     public Vector2 Velocity
     {
       get { return new Vector2(0, Speed).Rotated(-Direction); }
+      set
+      {
+        Speed = value.Length;
+        if(Speed != 0) Direction = ManeuveringBoard.AngleBetween(new BoardPoint(0, 0), value.ToPoint());
+      }
     }
 
     /// <summary>Gets or sets the unit's speed, in meters per second. This speed may be relative or true, depending on the value of
@@ -755,7 +760,7 @@ namespace Maneubo
       public override string GetStatusText(Shape shape)
       {
         UnitShape unit = (UnitShape)shape;
-        return (unit.Direction * MathConst.RadiansToDegrees).ToString("f2") + "°, " + unit.Board.GetSpeedString(unit.Speed);
+        return ManeuveringBoard.GetAngleString(unit.Direction) + ", " + unit.Board.GetSpeedString(unit.Speed);
       }
 
       public override void Update(Shape shape, BoardPoint dragStart, BoardPoint dragPoint)
@@ -785,7 +790,7 @@ namespace Maneubo
       {
         previous           = applicableWaypoint;
         applicableWaypoint = waypoint;
-        if(waypoint.Time > time) break;
+        if(waypoint.Time >= time) break;
       }
       previousWaypoint = previous;
       return applicableWaypoint;

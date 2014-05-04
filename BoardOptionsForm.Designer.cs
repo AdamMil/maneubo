@@ -42,6 +42,8 @@
       this.cmbUnitSystem = new System.Windows.Forms.ComboBox();
       this.chkShowAllObservations = new System.Windows.Forms.CheckBox();
       this.grpColors = new System.Windows.Forms.GroupBox();
+      this.btnScale2 = new System.Windows.Forms.Button();
+      this.btnScale1 = new System.Windows.Forms.Button();
       this.btnTMA = new System.Windows.Forms.Button();
       this.btnObservations = new System.Windows.Forms.Button();
       this.btnReference = new System.Windows.Forms.Button();
@@ -49,8 +51,6 @@
       this.btnUnselected = new System.Windows.Forms.Button();
       this.btnBackground = new System.Windows.Forms.Button();
       this.colorDialog = new System.Windows.Forms.ColorDialog();
-      this.btnScale1 = new System.Windows.Forms.Button();
-      this.btnScale2 = new System.Windows.Forms.Button();
       grpDisplay = new System.Windows.Forms.GroupBox();
       lblUnitSystem = new System.Windows.Forms.Label();
       lblBackground = new System.Windows.Forms.Label();
@@ -196,6 +196,16 @@
       btnCancel.Text = "Cancel";
       btnCancel.UseVisualStyleBackColor = true;
       // 
+      // lblScaleBar
+      // 
+      lblScaleBar.AutoSize = true;
+      lblScaleBar.Location = new System.Drawing.Point(10, 194);
+      lblScaleBar.Name = "lblScaleBar";
+      lblScaleBar.Size = new System.Drawing.Size(74, 13);
+      lblScaleBar.TabIndex = 12;
+      lblScaleBar.Text = "Map scale bar";
+      lblScaleBar.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+      // 
       // grpColors
       // 
       this.grpColors.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -222,6 +232,26 @@
       this.grpColors.TabIndex = 1;
       this.grpColors.TabStop = false;
       this.grpColors.Text = "&Colors";
+      // 
+      // btnScale2
+      // 
+      this.btnScale2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+      this.btnScale2.Location = new System.Drawing.Point(150, 189);
+      this.btnScale2.Name = "btnScale2";
+      this.btnScale2.Size = new System.Drawing.Size(25, 23);
+      this.btnScale2.TabIndex = 14;
+      this.btnScale2.UseVisualStyleBackColor = true;
+      this.btnScale2.Click += new System.EventHandler(this.btnColor_Click);
+      // 
+      // btnScale1
+      // 
+      this.btnScale1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+      this.btnScale1.Location = new System.Drawing.Point(119, 189);
+      this.btnScale1.Name = "btnScale1";
+      this.btnScale1.Size = new System.Drawing.Size(25, 23);
+      this.btnScale1.TabIndex = 13;
+      this.btnScale1.UseVisualStyleBackColor = true;
+      this.btnScale1.Click += new System.EventHandler(this.btnColor_Click);
       // 
       // btnTMA
       // 
@@ -283,36 +313,6 @@
       this.btnBackground.UseVisualStyleBackColor = true;
       this.btnBackground.Click += new System.EventHandler(this.btnColor_Click);
       // 
-      // btnScale1
-      // 
-      this.btnScale1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.btnScale1.Location = new System.Drawing.Point(119, 189);
-      this.btnScale1.Name = "btnScale1";
-      this.btnScale1.Size = new System.Drawing.Size(25, 23);
-      this.btnScale1.TabIndex = 13;
-      this.btnScale1.UseVisualStyleBackColor = true;
-      this.btnScale1.Click += new System.EventHandler(this.btnColor_Click);
-      // 
-      // lblScaleBar
-      // 
-      lblScaleBar.AutoSize = true;
-      lblScaleBar.Location = new System.Drawing.Point(10, 194);
-      lblScaleBar.Name = "lblScaleBar";
-      lblScaleBar.Size = new System.Drawing.Size(74, 13);
-      lblScaleBar.TabIndex = 12;
-      lblScaleBar.Text = "Map scale bar";
-      lblScaleBar.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
-      // btnScale2
-      // 
-      this.btnScale2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.btnScale2.Location = new System.Drawing.Point(150, 189);
-      this.btnScale2.Name = "btnScale2";
-      this.btnScale2.Size = new System.Drawing.Size(25, 23);
-      this.btnScale2.TabIndex = 14;
-      this.btnScale2.UseVisualStyleBackColor = true;
-      this.btnScale2.Click += new System.EventHandler(this.btnColor_Click);
-      // 
       // BoardOptionsForm
       // 
       this.AcceptButton = btnOK;
@@ -324,7 +324,9 @@
       this.Controls.Add(btnOK);
       this.Controls.Add(this.grpColors);
       this.Controls.Add(grpDisplay);
-      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+      this.MaximizeBox = false;
+      this.MinimizeBox = false;
       this.Name = "BoardOptionsForm";
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Board Options";

@@ -266,7 +266,15 @@ namespace Maneubo
 
     void miAbout_Click(object sender, EventArgs e)
     {
-      new AboutBox().ShowDialog();
+      using(AboutBox form = new AboutBox()) form.ShowDialog();
+    }
+
+    void miAdvanceTime_Click(object sender, EventArgs e)
+    {
+      using(AdvanceTimeForm form = new AdvanceTimeForm())
+      {
+        if(form.ShowDialog() == DialogResult.OK) board.AdvanceTime(form.Time, form.AdvanceUnitsWithWaypoints);
+      }
     }
 
     void miBackgroundImage_Click(object sender, EventArgs e)
@@ -276,19 +284,21 @@ namespace Maneubo
 
     void miBoardOptions_Click(object sender, EventArgs e)
     {
-      BoardOptionsForm form = new BoardOptionsForm(board);
-      if(form.ShowDialog() == DialogResult.OK)
+      using(BoardOptionsForm form = new BoardOptionsForm(board))
       {
-        board.ShowAllObservations = form.ShowAllObservations;
-        board.UnitSystem       = form.UnitSystem;
-        board.BackColor        = form.BoardBackgroundColor;
-        board.ObservationColor = form.ObservationColor;
-        board.ReferenceColor   = form.ReferenceColor;
-        board.ScaleColor1      = form.ScaleColor1;
-        board.ScaleColor2      = form.ScaleColor2;
-        board.SelectedColor    = form.SelectedColor;
-        board.TMAColor         = form.TMAColor;
-        board.UnselectedColor  = form.UnselectedColor;
+        if(form.ShowDialog() == DialogResult.OK)
+        {
+          board.ShowAllObservations = form.ShowAllObservations;
+          board.UnitSystem       = form.UnitSystem;
+          board.BackColor        = form.BoardBackgroundColor;
+          board.ObservationColor = form.ObservationColor;
+          board.ReferenceColor   = form.ReferenceColor;
+          board.ScaleColor1      = form.ScaleColor1;
+          board.ScaleColor2      = form.ScaleColor2;
+          board.SelectedColor    = form.SelectedColor;
+          board.TMAColor         = form.TMAColor;
+          board.UnselectedColor  = form.UnselectedColor;
+        }
       }
     }
 
@@ -327,35 +337,42 @@ namespace Maneubo
 
     void miProgramOptions_Click(object sender, EventArgs e)
     {
-      ProgramOptionsForm form = new ProgramOptionsForm();
-      form.SaveTimeHotkey        = saveTimeKey;
-      form.ToggleStopwatchHotkey = toggleStopwatchKey;
-      if(form.ShowDialog() == DialogResult.OK)
+      using(ProgramOptionsForm form = new ProgramOptionsForm())
       {
-        saveTimeKey        = form.SaveTimeHotkey;
-        toggleStopwatchKey = form.ToggleStopwatchHotkey;
-        UpdateHotKeys();
-
-        string dataPath = Program.GetDataDirectory();
-        if(dataPath != null)
+        form.SaveTimeHotkey        = saveTimeKey;
+        form.ToggleStopwatchHotkey = toggleStopwatchKey;
+        if(form.ShowDialog() == DialogResult.OK)
         {
-          string configFile = Path.Combine(dataPath, "config.txt");
-          try
-          {
-            using(StreamWriter writer = new StreamWriter(configFile))
-            {
-              writer.WriteLine("saveTimeHotkey=" + saveTimeKey.ToInvariantString());
-              writer.WriteLine("toggleStopwatchHotkey=" + toggleStopwatchKey.ToInvariantString());
-            }
-            return;
-          }
-          catch { }
-        }
+          saveTimeKey        = form.SaveTimeHotkey;
+          toggleStopwatchKey = form.ToggleStopwatchHotkey;
+          UpdateHotKeys();
 
-        if(dataPath == null) dataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        MessageBox.Show("Unable to save program settings to " + dataPath, "Unable to save settings",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+          string dataPath = Program.GetDataDirectory();
+          if(dataPath != null)
+          {
+            string configFile = Path.Combine(dataPath, "config.txt");
+            try
+            {
+              using(StreamWriter writer = new StreamWriter(configFile))
+              {
+                writer.WriteLine("saveTimeHotkey=" + saveTimeKey.ToStringInvariant());
+                writer.WriteLine("toggleStopwatchHotkey=" + toggleStopwatchKey.ToStringInvariant());
+              }
+              return;
+            }
+            catch { }
+          }
+
+          if(dataPath == null) dataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+          MessageBox.Show("Unable to save program settings to " + dataPath, "Unable to save settings",
+                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
       }
+    }
+
+    void miQuickInterceptTool_Click(object sender, EventArgs e)
+    {
+      using(InterceptForm form = new InterceptForm(null, null, board.UnitSystem)) form.ShowDialog();
     }
 
     void miRemoveBackground_Click(object sender, EventArgs e)

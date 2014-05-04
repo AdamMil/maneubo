@@ -17,7 +17,21 @@ namespace Maneubo
 
     public InterceptForm(UnitShape unit, UnitShape target, UnitSystem unitSystem) : this()
     {
-      if(unit == null || target == null) throw new ArgumentNullException();
+      if(unit != null || target != null)
+      {
+        if(unit == null || target == null) throw new ArgumentNullException();
+        txtBearing.Text     = ManeuveringBoard.GetAngleString(ManeuveringBoard.AngleBetween(unit.Position, target.Position));
+        txtRange.Text       = ManeuveringBoard.GetDistanceString((target.Position - unit.Position).Length, unitSystem);
+        txtCourse.Text      = ManeuveringBoard.GetAngleString(target.Direction);
+        txtTargetSpeed.Text = ManeuveringBoard.GetSpeedString(target.Speed, unitSystem);
+        txtBearing.Enabled = txtRange.Enabled = txtCourse.Enabled = txtTargetSpeed.Enabled = false;
+      }
+      else
+      {
+        if(unit != null || target != null) throw new ArgumentException();
+        radVector.Enabled = radWaypoint.Enabled = false;
+      }
+
       this.unit       = unit;
       this.target     = target;
       this.unitSystem = unitSystem;
@@ -77,12 +91,12 @@ namespace Maneubo
       if(!string.IsNullOrEmpty(txtAoB.Text.Trim()))
       {
         double value;
-        if(!double.TryParse(txtAoB.Text.Trim(), out value))
+        if(!TryParseAngle(txtAoB.Text.Trim(), out value))
         {
-          MessageBox.Show(txtAoB.Text + " is not a valid angle.", "Invalid angle", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          ShowInvalidAngle(txtAoB.Text);
           goto invalidData;
         }
-        aob = value * MathConst.DegreesToRadians;
+        aob = value;
       }
 
       if(!string.IsNullOrEmpty(txtRadius.Text.Trim()))
@@ -114,15 +128,76 @@ namespace Maneubo
         return false;
       }
 
-      Vector2 v = target.GetEffectiveVelocity();
+      Point2 targetPt;
+      Vector2 targetVel;
+      if(target != null)
+      {
+        targetPt  = target.Position;
+        targetVel = target.GetEffectiveVelocity();
+      }
+      else
+      {
+        double bearing, range;
+        if(string.IsNullOrEmpty(txtBearing.Text))
+        {
+          lblSolution.Text = "Enter a target bearing.";
+          return false;
+        }
+        else if(!TryParseAngle(txtBearing.Text, out bearing))
+        {
+          ShowInvalidAngle(txtBearing.Text);
+          goto invalidData;
+        }
+
+        if(string.IsNullOrEmpty(txtRange.Text))
+        {
+          lblSolution.Text = "Enter a target range.";
+          return false;
+        }
+        else if(!TryParseLength(txtRange.Text, unitSystem, out range))
+        {
+          ShowInvalidLength(txtRange.Text);
+          goto invalidData;
+        }
+
+        targetPt = new Vector2(0, range).Rotated(-bearing).ToPoint();
+
+        double targetSpeed, course;
+        if(string.IsNullOrEmpty(txtTargetSpeed.Text))
+        {
+          lblSolution.Text = "Enter a target speed.";
+          return false;
+        }
+        else if(!TryParseSpeed(txtTargetSpeed.Text, unitSystem, out targetSpeed))
+        {
+          ShowInvalidSpeed(txtTargetSpeed.Text);
+          goto invalidData;
+        }
+
+        if(targetSpeed == 0)
+        {
+          course = 0;
+        }
+        else if(string.IsNullOrEmpty(txtCourse.Text))
+        {
+          lblSolution.Text = "Enter a target course.";
+          return false;
+        }
+        else if(!TryParseAngle(txtCourse.Text, out course))
+        {
+          ShowInvalidAngle(txtCourse.Text);
+          goto invalidData;
+        }
+
+        targetVel = new Vector2(0, targetSpeed).Rotated(-course);
+      }
 
       // if AoB was specified, then we're actually trying to intercept a single point on the radius circle, so make that are target point
       // and use the standard point intercept algorithm
-      Point2 targetPt = !aob.HasValue ?
-        target.Position : target.Position + new Vector2(0, radius.Value).Rotated(-(target.Direction + aob.Value));
+      if(aob.HasValue) targetPt += new Vector2(0, radius.Value).Rotated(-(target.Direction + aob.Value));
 
       // if we've already satisfied the intercept criteria...
-      Vector2 o = targetPt - unit.Position;
+      Vector2 o = unit == null ? new Vector2(targetPt) : targetPt - unit.Position;
       if(o.LengthSqr <= (radius.HasValue && !aob.HasValue ? radius.Value*radius.Value : 0))
       {
         lblSolution.Text = "You are already there.";
@@ -130,11 +205,11 @@ namespace Maneubo
       }
 
       // if the target is not moving, any speed will work, so we'll just arbitrarily head there at 10 units of speed
-      if(v.LengthSqr == 0)
+      if(targetVel.LengthSqr == 0)
       {
         Solution       = o.Normalized(MB.ConvertFromUnit(10, MB.GetAppropriateSpeedUnit(unitSystem)));
         InterceptPoint = targetPt;
-        lblSolution.Text = MB.GetRoundedString(MB.SwapBearing(o.Angle) * MathConst.RadiansToDegrees) + "° (target stationary)";
+        lblSolution.Text = ManeuveringBoard.GetAngleString(MB.SwapBearing(o.Angle)) + " (target stationary)";
         return true;
       }
 
@@ -157,14 +232,14 @@ namespace Maneubo
           {
             if(t <= 0) return double.NaN;
             t *= 3600; // we'll scale the time from seconds to hours because the minimizer is a bit more stable when params are around 1.0
-            double x = o.X + v.X*t, y = o.Y + v.Y*t;
+            double x = o.X + targetVel.X*t, y = o.Y + targetVel.Y*t;
             return Math.Sqrt(x*x + y*y) / t;
           };
           Func<double, double> derivative = t =>
           {
             if(t <= 0) return double.NaN;
             t *= 3600;
-            double x = o.X + v.X*t, y = o.Y + v.Y*t;
+            double x = o.X + targetVel.X*t, y = o.Y + targetVel.Y*t;
             return -(o.X*x + o.Y*y) / (t*t*Math.Sqrt(x*x + y*y));
           };
           ConstrainedMinimizer minimizer = new ConstrainedMinimizer(new DifferentiableMDFunction(speedFunc, derivative));
@@ -197,7 +272,7 @@ namespace Maneubo
         // C=Ox^2 + Oy^2, then we have the quadratic A*t^2 + B*t + C = 0 which we can solve with the quadratic formula.
         // t = (-B +/- sqrt(B^2 - 4AC)) / 2A (and we can remove a factor of 2). if the discriminant is negative, there is no solution.
         // otherwise, we take whichever solution gives the smallest non-negative time
-        double A = v.X*v.X + v.Y*v.Y - speed.Value*speed.Value, B = o.X*v.X + o.Y*v.Y, C = o.X*o.X + o.Y*o.Y;
+        double A = targetVel.X*targetVel.X + targetVel.Y*targetVel.Y - speed.Value*speed.Value, B = o.X*targetVel.X + o.Y*targetVel.Y, C = o.X*o.X + o.Y*o.Y;
 
         // if A = 0, then the speeds are identical, and we get division by zero solving the quadratic. but if A = 0 then we just have
         // B*t + C = 0 or t = -C/B. we know B can't be zero because we checked the relevant cases above
@@ -221,11 +296,11 @@ namespace Maneubo
       // now that we know the time of intercept, we can calculate the intercept point and get the velocity we'd need to get there.
       // the intercept point is T+V*t. the intercept vector is T+V*t-P = O+V*t. this vector has a length equal to the distance, but we
       // want a length equal to the speed, so divide by time to get speed (e.g. 10 km in 2 hour = 5km/hour). but (O+V*t)/t = O/t+V
-      Solution       = o/time.Value + v;
-      InterceptPoint = targetPt + v*time.Value;
+      Solution       = o/time.Value + targetVel;
+      InterceptPoint = targetPt + targetVel*time.Value;
       haveSolution   = true;
 
-      lblSolution.Text = MB.GetRoundedString(MB.SwapBearing(Solution.Angle) * MathConst.RadiansToDegrees) + "° at " +
+      lblSolution.Text = ManeuveringBoard.GetAngleString(MB.SwapBearing(Solution.Angle)) + " at " +
                          MB.GetSpeedString(Solution.Length, unitSystem) + " for " + GetTimeString(time.Value);
       return true;
 
@@ -240,7 +315,7 @@ namespace Maneubo
 
     void btnOK_Click(object sender, System.EventArgs e)
     {
-      if(!haveSolution && !UpdateSolution())
+      if(!haveSolution && unit != null && !UpdateSolution())
       {
         MessageBox.Show(lblSolution.Text, "Can't provide solution", MessageBoxButtons.OK, MessageBoxIcon.Error);
         return;
@@ -266,10 +341,10 @@ namespace Maneubo
     static string GetTimeString(double seconds)
     {
       int secs = (int)Math.Ceiling(seconds);
-      if(secs < 60) return secs.ToInvariantString() + "s";
+      if(secs < 60) return secs.ToStringInvariant() + "s";
       int totalMinutes = (secs+30)/60, minutes = (secs%3600+59)/60;
-      return secs < 3600 ? totalMinutes.ToInvariantString() + "m" :
-             (secs/3600).ToInvariantString() + "h " + minutes.ToInvariantString() + "m";
+      return secs < 3600 ? totalMinutes.ToStringInvariant() + "m" :
+             (secs/3600).ToStringInvariant() + "h " + minutes.ToStringInvariant() + "m";
     }
   }
 }

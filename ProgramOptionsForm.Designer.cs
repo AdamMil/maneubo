@@ -66,38 +66,38 @@
       grpHotkeys.TabStop = false;
       grpHotkeys.Text = "Global Hotkeys";
       // 
-      // txtSSTChar
+      // txtTSChar
       // 
       this.txtTSChar.Location = new System.Drawing.Point(289, 40);
-      this.txtTSChar.Name = "txtSSTChar";
+      this.txtTSChar.Name = "txtTSChar";
       this.txtTSChar.Size = new System.Drawing.Size(37, 20);
       this.txtTSChar.TabIndex = 9;
       // 
-      // chkSSTShift
+      // chkTSShift
       // 
       this.chkTSShift.AutoSize = true;
       this.chkTSShift.Location = new System.Drawing.Point(235, 42);
-      this.chkTSShift.Name = "chkSSTShift";
+      this.chkTSShift.Name = "chkTSShift";
       this.chkTSShift.Size = new System.Drawing.Size(47, 17);
       this.chkTSShift.TabIndex = 8;
       this.chkTSShift.Text = "Shift";
       this.chkTSShift.UseVisualStyleBackColor = true;
       // 
-      // chkSSTCtrl
+      // chkTSCtrl
       // 
       this.chkTSCtrl.AutoSize = true;
       this.chkTSCtrl.Location = new System.Drawing.Point(188, 42);
-      this.chkTSCtrl.Name = "chkSSTCtrl";
+      this.chkTSCtrl.Name = "chkTSCtrl";
       this.chkTSCtrl.Size = new System.Drawing.Size(41, 17);
       this.chkTSCtrl.TabIndex = 7;
       this.chkTSCtrl.Text = "Ctrl";
       this.chkTSCtrl.UseVisualStyleBackColor = true;
       // 
-      // chkSSTAlt
+      // chkTSAlt
       // 
       this.chkTSAlt.AutoSize = true;
       this.chkTSAlt.Location = new System.Drawing.Point(144, 42);
-      this.chkTSAlt.Name = "chkSSTAlt";
+      this.chkTSAlt.Name = "chkTSAlt";
       this.chkTSAlt.Size = new System.Drawing.Size(38, 17);
       this.chkTSAlt.TabIndex = 6;
       this.chkTSAlt.Text = "Alt";
@@ -113,38 +113,38 @@
       this.chkSaveTime.Text = "Stopwatch save &time";
       this.chkSaveTime.UseVisualStyleBackColor = true;
       // 
-      // txtSSSChar
+      // txtSTChar
       // 
       this.txtSTChar.Location = new System.Drawing.Point(289, 17);
-      this.txtSTChar.Name = "txtSSSChar";
+      this.txtSTChar.Name = "txtSTChar";
       this.txtSTChar.Size = new System.Drawing.Size(37, 20);
       this.txtSTChar.TabIndex = 4;
       // 
-      // chkSSSShift
+      // chkSTShift
       // 
       this.chkSTShift.AutoSize = true;
       this.chkSTShift.Location = new System.Drawing.Point(235, 19);
-      this.chkSTShift.Name = "chkSSSShift";
+      this.chkSTShift.Name = "chkSTShift";
       this.chkSTShift.Size = new System.Drawing.Size(47, 17);
       this.chkSTShift.TabIndex = 3;
       this.chkSTShift.Text = "Shift";
       this.chkSTShift.UseVisualStyleBackColor = true;
       // 
-      // chkSSSCtrl
+      // chkSTCtrl
       // 
       this.chkSTCtrl.AutoSize = true;
       this.chkSTCtrl.Location = new System.Drawing.Point(188, 19);
-      this.chkSTCtrl.Name = "chkSSSCtrl";
+      this.chkSTCtrl.Name = "chkSTCtrl";
       this.chkSTCtrl.Size = new System.Drawing.Size(41, 17);
       this.chkSTCtrl.TabIndex = 2;
       this.chkSTCtrl.Text = "Ctrl";
       this.chkSTCtrl.UseVisualStyleBackColor = true;
       // 
-      // chkSSSAlt
+      // chkSTAlt
       // 
       this.chkSTAlt.AutoSize = true;
       this.chkSTAlt.Location = new System.Drawing.Point(144, 19);
-      this.chkSTAlt.Name = "chkSSSAlt";
+      this.chkSTAlt.Name = "chkSTAlt";
       this.chkSTAlt.Size = new System.Drawing.Size(38, 17);
       this.chkSTAlt.TabIndex = 1;
       this.chkSTAlt.Text = "Alt";
@@ -192,7 +192,9 @@
       this.Controls.Add(btnCancel);
       this.Controls.Add(btnOK);
       this.Controls.Add(grpHotkeys);
-      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+      this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+      this.MaximizeBox = false;
+      this.MinimizeBox = false;
       this.Name = "ProgramOptionsForm";
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Maneubo Options";

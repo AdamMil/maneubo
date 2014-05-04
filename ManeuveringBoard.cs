@@ -493,7 +493,7 @@ namespace Maneubo
           }
 
           string name = "M1";
-          for(int suffix=2; names.Contains(name); suffix++) name = "M" + suffix.ToInvariantString();
+          for(int suffix=2; names.Contains(name); suffix++) name = "M" + suffix.ToStringInvariant();
 
           unit = new UnitShape() { Name = name, Position = Board.GetBoardPoint(e.Location), Type = Type };
           Board.RootShapes.Add(unit);
@@ -842,8 +842,7 @@ namespace Maneubo
       {
         if(dragMode != DragMode.None)
         {
-          Board.StatusText = (SwapBearing(velocity.Angle) * MathConst.RadiansToDegrees).ToString("f2") + "°, " +
-                             Board.GetSpeedString(velocity.Length);
+          Board.StatusText = ManeuveringBoard.GetAngleString(velocity.Angle) + ", " + Board.GetSpeedString(velocity.Length);
         }
       }
 
@@ -2006,6 +2005,31 @@ namespace Maneubo
       }
     }
 
+    public void AdvanceTime(TimeSpan time, bool advanceUnitsWithWaypoints)
+    {
+      double seconds = time.TotalSeconds;
+      foreach(UnitShape unit in RootShapes.OfType<UnitShape>())
+      {
+        List<Waypoint> waypoints = unit.Children.OfType<Waypoint>().ToList();
+        if(waypoints.Count == 0)
+        {
+          unit.Position += unit.Velocity * seconds;
+        }
+        else if(advanceUnitsWithWaypoints)
+        {
+          Vector2 velocity = unit.GetEffectiveVelocity(time);
+          unit.Position = unit.GetPositionAt(time);
+          unit.Velocity = velocity;
+          foreach(Waypoint waypoint in waypoints)
+          {
+            if(waypoint.Time <= time) unit.Children.Remove(waypoint);
+            else waypoint.Time -= time;
+          }
+        }
+      }
+      Invalidate();
+    }
+
     public void Clear()
     {
       SelectedTool = PointerTool;
@@ -2376,6 +2400,19 @@ namespace Maneubo
       return unit;
     }
 
+    public static string GetAngleString(double nauticalAngle)
+    {
+      return GetAngleString(nauticalAngle, false);
+    }
+
+    public static string GetAngleString(double nauticalAngle, bool inDegrees)
+    {
+      if(!inDegrees) nauticalAngle *= MathConst.RadiansToDegrees;
+      while(nauticalAngle < 0) nauticalAngle += 360;
+      while(nauticalAngle >= 360) nauticalAngle -= 360;
+      return nauticalAngle.ToString("0.##") + "°";
+    }
+
     public static SpeedUnit GetAppropriateSpeedUnit(double metersPerSecond, UnitSystem system)
     {
       return GetAppropriateSpeedUnit(system);
@@ -2596,9 +2633,9 @@ namespace Maneubo
 
         if(ReferenceShape != null)
         {
-          double angle = AngleBetween(ReferenceShape.Position, cursor) * MathConst.RadiansToDegrees;
+          double angle = AngleBetween(ReferenceShape.Position, cursor);
           statusText = (statusText == null ? null : statusText + "; ") +
-                       angle.ToString("f2") + "°, " + GetDistanceString((cursor-ReferenceShape.Position).Length);
+                       ManeuveringBoard.GetAngleString(angle) + ", " + GetDistanceString((cursor-ReferenceShape.Position).Length);
         }
       }
 
@@ -2995,12 +3032,12 @@ namespace Maneubo
       string suffix = value < 0 ? negativeSuffix : value > 0 ? positiveSuffix : null;
       if(value < 0) value = -value;
 
-      string str = ((int)value).ToInvariantString() + "°";
+      string str = ((int)value).ToStringInvariant() + "°";
 
       double minutes = (value - (int)value) * 60;
       if(minutes != 0)
       {
-        str = str + " " + ((int)minutes).ToInvariantString() + "′";
+        str = str + " " + ((int)minutes).ToStringInvariant() + "′";
         double seconds = (minutes - (int)minutes) * 60;
         if(seconds != 0) str = str + " " + seconds.ToString("0.##") + "″";
       }
@@ -3013,7 +3050,7 @@ namespace Maneubo
       if(xmlColor == null || xmlColor.Trim().Length == 0) return defaultValue;
       try
       {
-        byte[] color = BinaryUtility.FromHex(xmlColor.Substring(1));
+        byte[] color = BinaryUtility.ParseHex(xmlColor.Substring(1));
         if(color.Length == 3) return Color.FromArgb(color[0], color[1], color[2]);
       }
       catch { }

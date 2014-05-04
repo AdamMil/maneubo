@@ -40,6 +40,7 @@
       System.Windows.Forms.ToolStripMenuItem miBackgroundImage;
       System.Windows.Forms.ToolStripSeparator menuSep2;
       System.Windows.Forms.ToolStripMenuItem menuTools;
+      System.Windows.Forms.ToolStripMenuItem miQuickInterceptTool;
       System.Windows.Forms.ToolStripMenuItem miStopwatch;
       System.Windows.Forms.ToolStripMenuItem miProgramOptions;
       System.Windows.Forms.ToolStripMenuItem menuHelp;
@@ -59,6 +60,8 @@
       System.Windows.Forms.ToolStripMenuItem miWaypoint;
       System.Windows.Forms.ToolStripSeparator tbSep2;
       System.Windows.Forms.ToolStripSeparator tbSep1;
+      System.Windows.Forms.ToolStripMenuItem miAdvanceTime;
+      System.Windows.Forms.ToolStripSeparator menuSep3;
       this.miRemoveBackground = new System.Windows.Forms.ToolStripMenuItem();
       this.miBoardOptions = new System.Windows.Forms.ToolStripMenuItem();
       this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
@@ -69,10 +72,10 @@
       this.tbAddUnit = new System.Windows.Forms.ToolStripButton();
       this.tbAddObservation = new System.Windows.Forms.ToolStripButton();
       this.tbWaypointType = new System.Windows.Forms.ToolStripDropDownButton();
-      this.tbTMA = new System.Windows.Forms.ToolStripButton();
       this.tbLine = new System.Windows.Forms.ToolStripButton();
       this.tbCircle = new System.Windows.Forms.ToolStripButton();
       this.tbIntercept = new System.Windows.Forms.ToolStripButton();
+      this.tbTMA = new System.Windows.Forms.ToolStripButton();
       this.tbSetBackground = new System.Windows.Forms.ToolStripButton();
       this.tbSetProjection = new System.Windows.Forms.ToolStripButton();
       this.board = new Maneubo.ManeuveringBoard();
@@ -88,6 +91,7 @@
       miBackgroundImage = new System.Windows.Forms.ToolStripMenuItem();
       menuSep2 = new System.Windows.Forms.ToolStripSeparator();
       menuTools = new System.Windows.Forms.ToolStripMenuItem();
+      miQuickInterceptTool = new System.Windows.Forms.ToolStripMenuItem();
       miStopwatch = new System.Windows.Forms.ToolStripMenuItem();
       miProgramOptions = new System.Windows.Forms.ToolStripMenuItem();
       menuHelp = new System.Windows.Forms.ToolStripMenuItem();
@@ -107,6 +111,8 @@
       miWaypoint = new System.Windows.Forms.ToolStripMenuItem();
       tbSep2 = new System.Windows.Forms.ToolStripSeparator();
       tbSep1 = new System.Windows.Forms.ToolStripSeparator();
+      miAdvanceTime = new System.Windows.Forms.ToolStripMenuItem();
+      menuSep3 = new System.Windows.Forms.ToolStripSeparator();
       menuStrip.SuspendLayout();
       statusStrip.SuspendLayout();
       this.toolStrip.SuspendLayout();
@@ -134,14 +140,14 @@
             miSep1,
             miExit});
       menuFile.Name = "menuFile";
-      menuFile.Size = new System.Drawing.Size(35, 20);
+      menuFile.Size = new System.Drawing.Size(37, 20);
       menuFile.Text = "&File";
       // 
       // miNew
       // 
       miNew.Name = "miNew";
       miNew.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.N)));
-      miNew.Size = new System.Drawing.Size(193, 22);
+      miNew.Size = new System.Drawing.Size(195, 22);
       miNew.Text = "&New";
       miNew.Click += new System.EventHandler(this.miNew_Click);
       // 
@@ -149,7 +155,7 @@
       // 
       miOpen.Name = "miOpen";
       miOpen.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
-      miOpen.Size = new System.Drawing.Size(193, 22);
+      miOpen.Size = new System.Drawing.Size(195, 22);
       miOpen.Text = "&Open...";
       miOpen.Click += new System.EventHandler(this.miOpen_Click);
       // 
@@ -157,7 +163,7 @@
       // 
       miSave.Name = "miSave";
       miSave.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.S)));
-      miSave.Size = new System.Drawing.Size(193, 22);
+      miSave.Size = new System.Drawing.Size(195, 22);
       miSave.Text = "&Save";
       miSave.Click += new System.EventHandler(this.miSave_Click);
       // 
@@ -166,20 +172,20 @@
       miSaveAs.Name = "miSaveAs";
       miSaveAs.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
             | System.Windows.Forms.Keys.S)));
-      miSaveAs.Size = new System.Drawing.Size(193, 22);
+      miSaveAs.Size = new System.Drawing.Size(195, 22);
       miSaveAs.Text = "Save &As...";
       miSaveAs.Click += new System.EventHandler(this.miSaveAs_Click);
       // 
       // miSep1
       // 
       miSep1.Name = "miSep1";
-      miSep1.Size = new System.Drawing.Size(190, 6);
+      miSep1.Size = new System.Drawing.Size(192, 6);
       // 
       // miExit
       // 
       miExit.Name = "miExit";
       miExit.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.F4)));
-      miExit.Size = new System.Drawing.Size(193, 22);
+      miExit.Size = new System.Drawing.Size(195, 22);
       miExit.Text = "E&xit";
       miExit.Click += new System.EventHandler(this.miExit_Click);
       // 
@@ -191,14 +197,14 @@
             menuSep2,
             this.miBoardOptions});
       menuEdit.Name = "menuEdit";
-      menuEdit.Size = new System.Drawing.Size(37, 20);
+      menuEdit.Size = new System.Drawing.Size(39, 20);
       menuEdit.Text = "&Edit";
       // 
       // miBackgroundImage
       // 
       miBackgroundImage.Name = "miBackgroundImage";
       miBackgroundImage.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.B)));
-      miBackgroundImage.Size = new System.Drawing.Size(273, 22);
+      miBackgroundImage.Size = new System.Drawing.Size(293, 22);
       miBackgroundImage.Text = "Set &Background Image...";
       miBackgroundImage.Click += new System.EventHandler(this.miBackgroundImage_Click);
       // 
@@ -208,43 +214,54 @@
       this.miRemoveBackground.Name = "miRemoveBackground";
       this.miRemoveBackground.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Shift) 
             | System.Windows.Forms.Keys.B)));
-      this.miRemoveBackground.Size = new System.Drawing.Size(273, 22);
+      this.miRemoveBackground.Size = new System.Drawing.Size(293, 22);
       this.miRemoveBackground.Text = "&Remove Background Image";
       this.miRemoveBackground.Click += new System.EventHandler(this.miRemoveBackground_Click);
       // 
       // menuSep2
       // 
       menuSep2.Name = "menuSep2";
-      menuSep2.Size = new System.Drawing.Size(270, 6);
+      menuSep2.Size = new System.Drawing.Size(290, 6);
       // 
       // miBoardOptions
       // 
       this.miBoardOptions.Name = "miBoardOptions";
-      this.miBoardOptions.Size = new System.Drawing.Size(273, 22);
+      this.miBoardOptions.Size = new System.Drawing.Size(293, 22);
       this.miBoardOptions.Text = "Board &Options...";
       this.miBoardOptions.Click += new System.EventHandler(this.miBoardOptions_Click);
       // 
       // menuTools
       // 
       menuTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            miAdvanceTime,
+            miQuickInterceptTool,
             miStopwatch,
+            menuSep3,
             miProgramOptions});
       menuTools.Name = "menuTools";
-      menuTools.Size = new System.Drawing.Size(44, 20);
+      menuTools.Size = new System.Drawing.Size(48, 20);
       menuTools.Text = "&Tools";
+      // 
+      // miQuickInterceptTool
+      // 
+      miQuickInterceptTool.Name = "miQuickInterceptTool";
+      miQuickInterceptTool.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.I)));
+      miQuickInterceptTool.Size = new System.Drawing.Size(228, 22);
+      miQuickInterceptTool.Text = "Quick &Intercept Tool...";
+      miQuickInterceptTool.Click += new System.EventHandler(this.miQuickInterceptTool_Click);
       // 
       // miStopwatch
       // 
       miStopwatch.Name = "miStopwatch";
       miStopwatch.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
-      miStopwatch.Size = new System.Drawing.Size(179, 22);
+      miStopwatch.Size = new System.Drawing.Size(228, 22);
       miStopwatch.Text = "&Stopwatch...";
       miStopwatch.Click += new System.EventHandler(this.miStopwatch_Click);
       // 
       // miProgramOptions
       // 
       miProgramOptions.Name = "miProgramOptions";
-      miProgramOptions.Size = new System.Drawing.Size(179, 22);
+      miProgramOptions.Size = new System.Drawing.Size(228, 22);
       miProgramOptions.Text = "Program &Options...";
       miProgramOptions.Click += new System.EventHandler(this.miProgramOptions_Click);
       // 
@@ -253,13 +270,13 @@
       menuHelp.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             miAbout});
       menuHelp.Name = "menuHelp";
-      menuHelp.Size = new System.Drawing.Size(40, 20);
+      menuHelp.Size = new System.Drawing.Size(44, 20);
       menuHelp.Text = "&Help";
       // 
       // miAbout
       // 
       miAbout.Name = "miAbout";
-      miAbout.Size = new System.Drawing.Size(115, 22);
+      miAbout.Size = new System.Drawing.Size(152, 22);
       miAbout.Text = "&About...";
       miAbout.Click += new System.EventHandler(this.miAbout_Click);
       // 
@@ -290,7 +307,7 @@
       // 
       miAirContact.Image = global::Maneubo.Properties.Resources.IconAir;
       miAirContact.Name = "miAirContact";
-      miAirContact.Size = new System.Drawing.Size(128, 22);
+      miAirContact.Size = new System.Drawing.Size(132, 22);
       miAirContact.Tag = Maneubo.UnitShapeType.Air;
       miAirContact.Text = "&Air";
       miAirContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -299,7 +316,7 @@
       // 
       miBoatShape.Image = global::Maneubo.Properties.Resources.IconBoat;
       miBoatShape.Name = "miBoatShape";
-      miBoatShape.Size = new System.Drawing.Size(128, 22);
+      miBoatShape.Size = new System.Drawing.Size(132, 22);
       miBoatShape.Tag = Maneubo.UnitShapeType.Boat;
       miBoatShape.Text = "&Boat";
       miBoatShape.Click += new System.EventHandler(this.miContactShape_Click);
@@ -308,7 +325,7 @@
       // 
       miHelicopterContact.Image = global::Maneubo.Properties.Resources.IconHelo;
       miHelicopterContact.Name = "miHelicopterContact";
-      miHelicopterContact.Size = new System.Drawing.Size(128, 22);
+      miHelicopterContact.Size = new System.Drawing.Size(132, 22);
       miHelicopterContact.Tag = Maneubo.UnitShapeType.Helicopter;
       miHelicopterContact.Text = "&Helicopter";
       miHelicopterContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -317,7 +334,7 @@
       // 
       miLandContact.Image = global::Maneubo.Properties.Resources.IconLand;
       miLandContact.Name = "miLandContact";
-      miLandContact.Size = new System.Drawing.Size(128, 22);
+      miLandContact.Size = new System.Drawing.Size(132, 22);
       miLandContact.Tag = Maneubo.UnitShapeType.Land;
       miLandContact.Text = "&Land";
       miLandContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -326,7 +343,7 @@
       // 
       miOwnShip.Image = global::Maneubo.Properties.Resources.IconOwnShip;
       miOwnShip.Name = "miOwnShip";
-      miOwnShip.Size = new System.Drawing.Size(128, 22);
+      miOwnShip.Size = new System.Drawing.Size(132, 22);
       miOwnShip.Tag = Maneubo.UnitShapeType.OwnShip;
       miOwnShip.Text = "&Own Ship";
       miOwnShip.Click += new System.EventHandler(this.miContactShape_Click);
@@ -335,7 +352,7 @@
       // 
       miSubsurfaceContact.Image = global::Maneubo.Properties.Resources.IconSubsurface;
       miSubsurfaceContact.Name = "miSubsurfaceContact";
-      miSubsurfaceContact.Size = new System.Drawing.Size(128, 22);
+      miSubsurfaceContact.Size = new System.Drawing.Size(132, 22);
       miSubsurfaceContact.Tag = Maneubo.UnitShapeType.Subsurface;
       miSubsurfaceContact.Text = "&Subsurface";
       miSubsurfaceContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -346,7 +363,7 @@
       miSurfaceContact.CheckState = System.Windows.Forms.CheckState.Checked;
       miSurfaceContact.Image = global::Maneubo.Properties.Resources.IconSurface;
       miSurfaceContact.Name = "miSurfaceContact";
-      miSurfaceContact.Size = new System.Drawing.Size(128, 22);
+      miSurfaceContact.Size = new System.Drawing.Size(132, 22);
       miSurfaceContact.Tag = Maneubo.UnitShapeType.Surface;
       miSurfaceContact.Text = "Su&rface";
       miSurfaceContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -355,7 +372,7 @@
       // 
       miUnknownContact.Image = global::Maneubo.Properties.Resources.IconUnknown;
       miUnknownContact.Name = "miUnknownContact";
-      miUnknownContact.Size = new System.Drawing.Size(128, 22);
+      miUnknownContact.Size = new System.Drawing.Size(132, 22);
       miUnknownContact.Tag = Maneubo.UnitShapeType.Unknown;
       miUnknownContact.Text = "&Unknown";
       miUnknownContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -364,7 +381,7 @@
       // 
       miWeaponContact.Image = global::Maneubo.Properties.Resources.IconWeapon;
       miWeaponContact.Name = "miWeaponContact";
-      miWeaponContact.Size = new System.Drawing.Size(128, 22);
+      miWeaponContact.Size = new System.Drawing.Size(132, 22);
       miWeaponContact.Tag = Maneubo.UnitShapeType.Weapon;
       miWeaponContact.Text = "&Weapon";
       miWeaponContact.Click += new System.EventHandler(this.miContactShape_Click);
@@ -375,7 +392,7 @@
       miPointObs.CheckState = System.Windows.Forms.CheckState.Checked;
       miPointObs.Image = global::Maneubo.Properties.Resources.IconObsPoint;
       miPointObs.Name = "miPointObs";
-      miPointObs.Size = new System.Drawing.Size(172, 22);
+      miPointObs.Size = new System.Drawing.Size(181, 22);
       miPointObs.Tag = Maneubo.PositionalDataType.Point;
       miPointObs.Text = "&Point Observation";
       miPointObs.Click += new System.EventHandler(this.miObsType_Click);
@@ -384,7 +401,7 @@
       // 
       miBearingObs.Image = global::Maneubo.Properties.Resources.IconObsBearing;
       miBearingObs.Name = "miBearingObs";
-      miBearingObs.Size = new System.Drawing.Size(172, 22);
+      miBearingObs.Size = new System.Drawing.Size(181, 22);
       miBearingObs.Tag = Maneubo.PositionalDataType.BearingLine;
       miBearingObs.Text = "&Bearing Observation";
       miBearingObs.Click += new System.EventHandler(this.miObsType_Click);
@@ -393,10 +410,20 @@
       // 
       miWaypoint.Image = global::Maneubo.Properties.Resources.IconWaypoint;
       miWaypoint.Name = "miWaypoint";
-      miWaypoint.Size = new System.Drawing.Size(172, 22);
+      miWaypoint.Size = new System.Drawing.Size(181, 22);
       miWaypoint.Tag = Maneubo.PositionalDataType.Waypoint;
       miWaypoint.Text = "&Waypoint";
       miWaypoint.Click += new System.EventHandler(this.miObsType_Click);
+      // 
+      // tbSep2
+      // 
+      tbSep2.Name = "tbSep2";
+      tbSep2.Size = new System.Drawing.Size(6, 25);
+      // 
+      // tbSep1
+      // 
+      tbSep1.Name = "tbSep1";
+      tbSep1.Size = new System.Drawing.Size(6, 25);
       // 
       // tbUnitShape
       // 
@@ -477,15 +504,6 @@
       this.tbWaypointType.Size = new System.Drawing.Size(13, 22);
       this.tbWaypointType.Text = "Select Observation/Waypoint Type (F4)";
       // 
-      // tbTMA
-      // 
-      this.tbTMA.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
-      this.tbTMA.Image = global::Maneubo.Properties.Resources.IconTMA;
-      this.tbTMA.Name = "tbTMA";
-      this.tbTMA.Size = new System.Drawing.Size(23, 22);
-      this.tbTMA.Text = "Target Motion Analysis (T)";
-      this.tbTMA.Click += new System.EventHandler(this.tbTMA_Click);
-      // 
       // tbLine
       // 
       this.tbLine.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
@@ -512,6 +530,15 @@
       this.tbIntercept.Size = new System.Drawing.Size(23, 22);
       this.tbIntercept.Text = "Calculate Intercept (I)";
       this.tbIntercept.Click += new System.EventHandler(this.tbIntercept_Click);
+      // 
+      // tbTMA
+      // 
+      this.tbTMA.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+      this.tbTMA.Image = global::Maneubo.Properties.Resources.IconTMA;
+      this.tbTMA.Name = "tbTMA";
+      this.tbTMA.Size = new System.Drawing.Size(23, 22);
+      this.tbTMA.Text = "Target Motion Analysis (T)";
+      this.tbTMA.Click += new System.EventHandler(this.tbTMA_Click);
       // 
       // tbSetBackground
       // 
@@ -545,15 +572,18 @@
       this.board.ToolChanged += new System.EventHandler(this.board_ToolChanged);
       this.board.BackgroundImageChanged += new System.EventHandler(this.board_BackgroundImageChanged);
       // 
-      // tbSep2
+      // miAdvanceTime
       // 
-      tbSep2.Name = "tbSep2";
-      tbSep2.Size = new System.Drawing.Size(6, 25);
+      miAdvanceTime.Name = "miAdvanceTime";
+      miAdvanceTime.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.T)));
+      miAdvanceTime.Size = new System.Drawing.Size(228, 22);
+      miAdvanceTime.Text = "Advance &Time...";
+      miAdvanceTime.Click += new System.EventHandler(this.miAdvanceTime_Click);
       // 
-      // tbSep1
+      // menuSep3
       // 
-      tbSep1.Name = "tbSep1";
-      tbSep1.Size = new System.Drawing.Size(6, 25);
+      menuSep3.Name = "menuSep3";
+      menuSep3.Size = new System.Drawing.Size(225, 6);
       // 
       // MainForm
       // 
