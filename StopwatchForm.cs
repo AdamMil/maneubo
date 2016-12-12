@@ -32,6 +32,12 @@ namespace Maneubo
       }
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+      base.OnKeyDown(e);
+      if(e.KeyCode == Keys.Escape && !e.Handled) Hide();
+    }
+
     void btnClear_Click(object sender, System.EventArgs e)
     {
       lstTimes.Items.Clear();

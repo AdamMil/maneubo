@@ -163,7 +163,7 @@
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-      this.ClientSize = new System.Drawing.Size(172, 158);
+      this.ClientSize = new System.Drawing.Size(164, 158);
       this.Controls.Add(this.btnReset);
       this.Controls.Add(btnSave);
       this.Controls.Add(this.btnClear);
@@ -174,6 +174,7 @@
       this.Controls.Add(this.lblCurrent);
       this.Controls.Add(lblTotalLabel);
       this.Controls.Add(lblCurrentLabel);
+      this.KeyPreview = true;
       this.Location = new System.Drawing.Point(180, 161);
       this.MaximizeBox = false;
       this.MaximumSize = new System.Drawing.Size(180, 9999);

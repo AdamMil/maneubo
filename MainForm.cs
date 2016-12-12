@@ -271,9 +271,13 @@ namespace Maneubo
 
     void miAdvanceTime_Click(object sender, EventArgs e)
     {
-      using(AdvanceTimeForm form = new AdvanceTimeForm())
+      using(AdvanceTimeForm form = new AdvanceTimeForm() { Time = lastTimeAdvance })
       {
-        if(form.ShowDialog() == DialogResult.OK) board.AdvanceTime(form.Time, form.AdvanceUnitsWithWaypoints);
+        if(form.ShowDialog() == DialogResult.OK)
+        {
+          board.AdvanceTime(form.Time);
+          lastTimeAdvance = form.Time;
+        }
       }
     }
 
@@ -372,7 +376,11 @@ namespace Maneubo
 
     void miQuickInterceptTool_Click(object sender, EventArgs e)
     {
-      using(InterceptForm form = new InterceptForm(null, null, board.UnitSystem)) form.ShowDialog();
+      UnitShape reference = board.ReferenceShape as UnitShape, selected = board.SelectedShape as UnitShape;
+      using(InterceptForm form = new InterceptForm(reference, selected, board.UnitSystem, false))
+      {
+        if(form.ShowDialog() == DialogResult.OK && reference != null) board.ApplyIntercept(reference, form);
+      }
     }
 
     void miRemoveBackground_Click(object sender, EventArgs e)
@@ -398,7 +406,9 @@ namespace Maneubo
         stopwatch.StartPosition = FormStartPosition.Manual;
         stopwatch.Location = PointToScreen(new Point(board.Right-stopwatch.Width, board.Top));
       }
-      if(!stopwatch.Visible) stopwatch.Show();
+
+      if(stopwatch.WindowState != FormWindowState.Minimized && stopwatch.Visible) stopwatch.Hide();
+      else if(!stopwatch.Visible) stopwatch.Show();
       else stopwatch.WindowState = FormWindowState.Normal;
     }
 
@@ -449,6 +459,7 @@ namespace Maneubo
 
     StopwatchForm stopwatch;
     string fileName;
+    TimeSpan lastTimeAdvance;
     int saveTimeKey, toggleStopwatchKey;
     bool noRepeatSupported;
 

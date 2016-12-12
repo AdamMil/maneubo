@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using AdamMil.Mathematics.Geometry;
 using System.ComponentModel;
+using System.Collections.Generic;
 
 namespace Maneubo
 {
@@ -21,6 +22,8 @@ namespace Maneubo
       txtTime.Text = ManeuveringBoard.GetTimeString(posData.Time);
       txtTime.Focus();
       txtTime.SelectAll();
+
+      Text = grpObservation.Text = (posData is Waypoint ? "Waypoint" : "Observation") + " Data";
 
       PositionalDataShape previousPosition = null;
       UnitShape observer = posData is Observation ? ((Observation)posData).Observer : null;
@@ -68,6 +71,7 @@ namespace Maneubo
         else FillRelativeTo(previousPosition, txtPreviousBearing, txtPreviousDistance, out previousPoint);
 
         waypoint = posData is Waypoint;
+        if(waypoint) waypointTimes = posData.Parent.Children.OfType<Waypoint>().Where(w => w != posData).Select(w => w.Time).ToList();
       }
     }
 
@@ -129,7 +133,7 @@ namespace Maneubo
       if(Validate(txtBearing, txtDistance))
       {
         double bearing = (double)txtBearing.Tag, distance = (double)txtDistance.Tag;
-        posDataPoint = fromPoint + new Vector2(0, distance).Rotated(-bearing);
+        posDataPoint = fromPoint + new Vector2(0, distance).Rotate(-bearing);
 
         if(otherPoint1.HasValue) FillRelativeTo(txtOtherBearing1, txtOtherDistance1, otherPoint1.Value);
         if(otherPoint2.HasValue) FillRelativeTo(txtOtherBearing2, txtOtherDistance2, otherPoint2.Value);
@@ -190,12 +194,12 @@ namespace Maneubo
       if(!TryParseTime(txtTime.Text, out time))
       {
         if(string.IsNullOrEmpty(txtTime.Text.Trim())) ShowRequiredMessage("Time");
-        else ShowInvalidTime(txtTime.Text, true);
+        else ShowInvalidTime(txtTime.Text, true, true);
         return;
       }
-      else if(waypoint && time.TotalSeconds < 1)
+      else if(waypointTimes != null && waypointTimes.Contains(time))
       {
-        MessageBox.Show("A waypoint's time must not be equal to zero.", "Invalid time", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show("Two waypoints cannot have the same time.", "Invalid time", MessageBoxButtons.OK, MessageBoxIcon.Error);
         return;
       }
 
@@ -243,6 +247,7 @@ namespace Maneubo
     readonly Point2? observerPoint, previousPoint;
     readonly TimeSpan? previousTime;
     readonly UnitSystem unitSystem;
+    readonly List<TimeSpan> waypointTimes;
     readonly bool waypoint;
 
     Point2? posDataPoint;

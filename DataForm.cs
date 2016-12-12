@@ -24,12 +24,13 @@ namespace Maneubo
                       "mph.", "Invalid speed", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
-    protected static void ShowInvalidTime(string text, bool allowRelative)
+    protected static void ShowInvalidTime(string text, bool allowRelative, bool allowNegative)
     {
       string message = text + " is not a valid time. You may specify a time as a number of minutes, or in the form mm:ss or hh:mm:ss.";
+      if(allowNegative) message += " You may prepend a minus sign to input a negative time.";
       if(allowRelative)
       {
-        message += "If there was a previous time, you may prepend a + sign to indicate that the time should be interpreted relative to " +
+        message += " If there was a previous time, you may prepend a plus sign to indicate that the time should be interpreted relative to " +
                    "the previous one.";
       }
       MessageBox.Show(message, "Invalid time", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -142,6 +143,7 @@ namespace Maneubo
           int.TryParse(m.Groups["seconds"].Value, out seconds);
           time = new TimeSpan(hours, (int)minutes, seconds);
         }
+        if(m.Groups["neg"].Success) time = -time;
         relative = m.Groups["rel"].Success;
         return true;
       }
@@ -151,7 +153,7 @@ namespace Maneubo
                                                RegexOptions.IgnoreCase);
     static readonly Regex speedRe = new Regex(@"^\s*(?<number>\d+|\d*[\.,]\d+)\s*(?<unit>k(?:n|ph|ts?)|m(?:\/s|p[sh]))?\s*$",
                                               RegexOptions.IgnoreCase);
-    static readonly Regex timeRe = new Regex(@"^\s*(?<rel>\+)?\s*(?:(?<minutes>\d*\.\d+)|(?<minutes>\d+)(?::(?<seconds>\d+))?|(?<hours>\d+):(?<minutes>\d+):(?<seconds>\d+))?\s*$",
+    static readonly Regex timeRe = new Regex(@"^\s*(?<rel>\+)?\s*(?<neg>-)?\s*(?:(?<minutes>\d*\.\d+)|(?<minutes>\d+)(?::(?<seconds>\d+))?|(?<hours>\d+):(?<minutes>\d+):(?<seconds>\d+))?\s*$",
                                              RegexOptions.IgnoreCase);
   }
 }

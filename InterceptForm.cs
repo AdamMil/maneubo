@@ -15,22 +15,24 @@ namespace Maneubo
       InitializeComponent();
     }
 
-    public InterceptForm(UnitShape unit, UnitShape target, UnitSystem unitSystem) : this()
+    public InterceptForm(UnitShape unit, UnitShape target, UnitSystem unitSystem, bool disableControls) : this()
     {
-      if(unit != null || target != null)
+      if(target != null)
       {
-        if(unit == null || target == null) throw new ArgumentNullException();
-        txtBearing.Text     = ManeuveringBoard.GetAngleString(ManeuveringBoard.AngleBetween(unit.Position, target.Position));
-        txtRange.Text       = ManeuveringBoard.GetDistanceString((target.Position - unit.Position).Length, unitSystem);
+        if(unit != null)
+        {
+          txtBearing.Text = ManeuveringBoard.GetAngleString(ManeuveringBoard.AngleBetween(unit.Position, target.Position));
+          txtRange.Text   = ManeuveringBoard.GetDistanceString((target.Position - unit.Position).Length, unitSystem);
+          txtBearing.Enabled = txtRange.Enabled = !disableControls;
+          txtSpeed.Select();
+        }
+
         txtCourse.Text      = ManeuveringBoard.GetAngleString(target.Direction);
         txtTargetSpeed.Text = ManeuveringBoard.GetSpeedString(target.Speed, unitSystem);
-        txtBearing.Enabled = txtRange.Enabled = txtCourse.Enabled = txtTargetSpeed.Enabled = false;
+        txtCourse.Enabled = txtTargetSpeed.Enabled = !disableControls;
       }
-      else
-      {
-        if(unit != null || target != null) throw new ArgumentException();
-        radVector.Enabled = radWaypoint.Enabled = false;
-      }
+
+      if(unit == null) radVector.Enabled = radWaypoint.Enabled = btnOK.Enabled = false;
 
       this.unit       = unit;
       this.target     = target;
@@ -82,7 +84,7 @@ namespace Maneubo
         bool relative;
         if(!TryParseTime(txtTime.Text, out timeSpan, out relative))
         {
-          ShowInvalidTime(txtTime.Text, false);
+          ShowInvalidTime(txtTime.Text, false, false);
           goto invalidData;
         }
         time = timeSpan.TotalSeconds;
@@ -130,10 +132,12 @@ namespace Maneubo
 
       Point2 targetPt;
       Vector2 targetVel;
+      double targetCourse;
       if(target != null)
       {
-        targetPt  = target.Position;
-        targetVel = target.GetEffectiveVelocity();
+        targetPt     = target.Position;
+        targetVel    = target.GetEffectiveVelocity();
+        targetCourse = target.Direction;
       }
       else
       {
@@ -160,9 +164,9 @@ namespace Maneubo
           goto invalidData;
         }
 
-        targetPt = new Vector2(0, range).Rotated(-bearing).ToPoint();
+        targetPt = new Vector2(0, range).Rotate(-bearing).ToPoint();
 
-        double targetSpeed, course;
+        double targetSpeed;
         if(string.IsNullOrEmpty(txtTargetSpeed.Text))
         {
           lblSolution.Text = "Enter a target speed.";
@@ -176,25 +180,25 @@ namespace Maneubo
 
         if(targetSpeed == 0)
         {
-          course = 0;
+          targetCourse = 0;
         }
         else if(string.IsNullOrEmpty(txtCourse.Text))
         {
           lblSolution.Text = "Enter a target course.";
           return false;
         }
-        else if(!TryParseAngle(txtCourse.Text, out course))
+        else if(!TryParseAngle(txtCourse.Text, out targetCourse))
         {
           ShowInvalidAngle(txtCourse.Text);
           goto invalidData;
         }
 
-        targetVel = new Vector2(0, targetSpeed).Rotated(-course);
+        targetVel = new Vector2(0, targetSpeed).Rotate(-targetCourse);
       }
 
       // if AoB was specified, then we're actually trying to intercept a single point on the radius circle, so make that are target point
       // and use the standard point intercept algorithm
-      if(aob.HasValue) targetPt += new Vector2(0, radius.Value).Rotated(-(target.Direction + aob.Value));
+      if(aob.HasValue) targetPt += new Vector2(0, radius.Value).Rotate(-(targetCourse + aob.Value));
 
       // if we've already satisfied the intercept criteria...
       Vector2 o = unit == null ? new Vector2(targetPt) : targetPt - unit.Position;
@@ -207,7 +211,7 @@ namespace Maneubo
       // if the target is not moving, any speed will work, so we'll just arbitrarily head there at 10 units of speed
       if(targetVel.LengthSqr == 0)
       {
-        Solution       = o.Normalized(MB.ConvertFromUnit(10, MB.GetAppropriateSpeedUnit(unitSystem)));
+        Solution       = o.GetNormal(MB.ConvertFromUnit(10, MB.GetAppropriateSpeedUnit(unitSystem)));
         InterceptPoint = targetPt;
         lblSolution.Text = ManeuveringBoard.GetAngleString(MB.SwapBearing(o.Angle)) + " (target stationary)";
         return true;

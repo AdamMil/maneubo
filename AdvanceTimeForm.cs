@@ -10,12 +10,15 @@ namespace Maneubo
       InitializeComponent();
     }
 
-    public bool AdvanceUnitsWithWaypoints
+    public TimeSpan Time
     {
-      get { return chkWaypoints.Checked; }
+      get { return _time; }
+      set
+      {
+        txtTime.Text = ManeuveringBoard.GetTimeString(value);
+        _time = value;
+      }
     }
-
-    public TimeSpan Time { get; private set; }
 
     void btnOK_Click(object sender, EventArgs e)
     {
@@ -30,11 +33,13 @@ namespace Maneubo
       TimeSpan time;
       if(!TryParseTime(timeStr, out time, out relative) || (relative & negative))
       {
-        ShowInvalidTime(txtTime.Text, false);
+        ShowInvalidTime(txtTime.Text, false, true);
         return;
       }
       Time = negative ? -time : time;
       DialogResult = DialogResult.OK;
     }
+
+    TimeSpan _time;
   }
 }

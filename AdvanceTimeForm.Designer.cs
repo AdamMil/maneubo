@@ -32,7 +32,6 @@
       System.Windows.Forms.Button btnOK;
       System.Windows.Forms.Button btnCancel;
       this.txtTime = new System.Windows.Forms.TextBox();
-      this.chkWaypoints = new System.Windows.Forms.CheckBox();
       lblTime = new System.Windows.Forms.Label();
       btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
@@ -48,7 +47,7 @@
       // 
       // btnOK
       // 
-      btnOK.Location = new System.Drawing.Point(11, 71);
+      btnOK.Location = new System.Drawing.Point(88, 41);
       btnOK.Name = "btnOK";
       btnOK.Size = new System.Drawing.Size(75, 23);
       btnOK.TabIndex = 3;
@@ -59,7 +58,7 @@
       // btnCancel
       // 
       btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-      btnCancel.Location = new System.Drawing.Point(92, 71);
+      btnCancel.Location = new System.Drawing.Point(169, 41);
       btnCancel.Name = "btnCancel";
       btnCancel.Size = new System.Drawing.Size(75, 23);
       btnCancel.TabIndex = 4;
@@ -73,28 +72,15 @@
       this.txtTime.Size = new System.Drawing.Size(71, 20);
       this.txtTime.TabIndex = 1;
       // 
-      // chkWaypoints
-      // 
-      this.chkWaypoints.AutoSize = true;
-      this.chkWaypoints.Checked = true;
-      this.chkWaypoints.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkWaypoints.Location = new System.Drawing.Point(88, 45);
-      this.chkWaypoints.Name = "chkWaypoints";
-      this.chkWaypoints.Size = new System.Drawing.Size(166, 17);
-      this.chkWaypoints.TabIndex = 2;
-      this.chkWaypoints.Text = "Advance units with &waypoints";
-      this.chkWaypoints.UseVisualStyleBackColor = true;
-      // 
       // AdvanceTimeForm
       // 
       this.AcceptButton = btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
-      this.ClientSize = new System.Drawing.Size(256, 101);
+      this.ClientSize = new System.Drawing.Size(253, 71);
       this.Controls.Add(btnCancel);
       this.Controls.Add(btnOK);
-      this.Controls.Add(this.chkWaypoints);
       this.Controls.Add(this.txtTime);
       this.Controls.Add(lblTime);
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -111,6 +97,5 @@
     #endregion
 
     private System.Windows.Forms.TextBox txtTime;
-    private System.Windows.Forms.CheckBox chkWaypoints;
   }
 }

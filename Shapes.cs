@@ -450,7 +450,7 @@ namespace Maneubo
 
     public Vector2 Velocity
     {
-      get { return new Vector2(0, Speed).Rotated(-Direction); }
+      get { return new Vector2(0, Speed).Rotate(-Direction); }
       set
       {
         Speed = value.Length;
@@ -501,9 +501,14 @@ namespace Maneubo
       }
       else
       {
-        double previousTime = previousWaypoint == null ? 0 : previousWaypoint.Time.TotalSeconds;
-        BoardPoint previousPosition = previousWaypoint == null ? Position : previousWaypoint.Position;
-        return (applicableWaypoint.Position - previousPosition) / (applicableWaypoint.Time.TotalSeconds - previousTime);
+        bool crossedZero = previousWaypoint == null || (previousWaypoint.Time < TimeSpan.Zero && applicableWaypoint.Time > TimeSpan.Zero);
+        bool thisIsPrev = previousWaypoint == null || crossedZero && time >= TimeSpan.Zero;
+        bool thisIsNext = previousWaypoint != null && crossedZero && time < TimeSpan.Zero;
+        double previousTime = thisIsPrev ? 0 : previousWaypoint.Time.TotalSeconds;
+        double nextTime     = thisIsNext ? 0 : applicableWaypoint.Time.TotalSeconds;
+        BoardPoint previousPosition = thisIsPrev ? Position : previousWaypoint.Position;
+        BoardPoint nextPosition     = thisIsNext ? Position : applicableWaypoint.Position;
+        return (nextPosition - previousPosition) / (nextTime - previousTime);
       }
     }
 
@@ -518,10 +523,14 @@ namespace Maneubo
       }
       else
       {
-        double previousTime = previousWaypoint == null ? 0 : previousWaypoint.Time.TotalSeconds;
-        BoardPoint previousPosition = previousWaypoint == null ? Position : previousWaypoint.Position;
-        return previousPosition + (applicableWaypoint.Position - previousPosition) *
-               ((time.TotalSeconds - previousTime) / (applicableWaypoint.Time.TotalSeconds - previousTime));
+        bool crossedZero = previousWaypoint == null || (previousWaypoint.Time < TimeSpan.Zero && applicableWaypoint.Time > TimeSpan.Zero);
+        bool thisIsPrev = previousWaypoint == null || crossedZero && time >= TimeSpan.Zero;
+        bool thisIsNext = previousWaypoint != null && crossedZero && time < TimeSpan.Zero;
+        double previousTime = thisIsPrev ? 0 : previousWaypoint.Time.TotalSeconds;
+        double nextTime     = thisIsNext ? 0 : applicableWaypoint.Time.TotalSeconds;
+        BoardPoint previousPosition = thisIsPrev ? Position : previousWaypoint.Position;
+        BoardPoint nextPosition     = thisIsNext ? Position : applicableWaypoint.Position;
+        return previousPosition + (nextPosition - previousPosition) * ((time.TotalSeconds - previousTime) / (nextTime - previousTime));
       }
     }
 
@@ -534,9 +543,9 @@ namespace Maneubo
       // if we're drawing a motion vector and the vector is not controlled by waypoints, allow the user to grab that, too
       if(ShouldDrawMotionVector && Speed > 0 && !Children.Any(c => c is Waypoint))
       {
-        Vector2 vector = new Vector2(0, Speed*ManeuveringBoard.VectorTime).Rotated(-Direction);
+        Vector2 vector = new Vector2(0, Speed*ManeuveringBoard.VectorTime).Rotate(-Direction);
         // use two pixels before the endpoint as the hotspot, since that's closer to the center of mass of the arrow head
-        vector.Normalize(vector.Length-2/Board.ZoomFactor);
+        vector.GetNormal(vector.Length-2/Board.ZoomFactor);
         distance = boardPoint.DistanceTo(Position + vector) * Board.ZoomFactor;
         if(distance <= 5) return new KeyValuePair<double,Handle>(distance, vectorHandle);
       }
@@ -550,7 +559,8 @@ namespace Maneubo
 
       // don't draw the velocity vector if we're using the TMA tool for this shape, since they often coincide
       Vector2 velocity = GetEffectiveVelocity();
-      if(ShouldDrawMotionVector && velocity.LengthSqr > 0)
+      double lengthSqr = velocity.LengthSqr;
+      if(ShouldDrawMotionVector && lengthSqr > 0 && !double.IsInfinity(lengthSqr))
       {
         // if the unit has a speed, draw the velocity vector. the vector will be drawn with a length equal to the distance traveled in
         // six minutes
@@ -790,8 +800,9 @@ namespace Maneubo
       {
         previous           = applicableWaypoint;
         applicableWaypoint = waypoint;
-        if(waypoint.Time >= time) break;
+        if(waypoint.Time > time && (previous != null || time >= TimeSpan.Zero)) break;
       }
+
       previousWaypoint = previous;
       return applicableWaypoint;
     }
@@ -835,25 +846,29 @@ namespace Maneubo
       Match m = timeRe.Match(reader.GetStringAttribute("time"));
       if(!m.Success) throw new System.IO.InvalidDataException("\"" + timeStr + "\" is not a valid time value.");
 
-      int hours = 0, minutes = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), seconds = 0;
-      if(m.Groups[2].Success)
+      int hours = 0, minutes = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture), seconds = 0;
+      if(m.Groups[3].Success)
       {
         hours   = minutes;
-        minutes = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
-        if(m.Groups[3].Success) seconds = int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+        minutes = int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+        if(m.Groups[4].Success) seconds = int.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture);
       }
 
       shape.Time = new TimeSpan(hours, minutes, seconds);
+      if(m.Groups[1].Success) shape.Time = -shape.Time;
     }
 
     string GetTimeString()
     {
-      string timeStr = ((int)Time.TotalHours).ToString() + ":" + Time.Minutes.ToString("d2");
-      if(Time.Seconds != 0) timeStr += ":" + Time.Seconds.ToString("d2");
+      TimeSpan time = Time;
+      if(time < TimeSpan.Zero) time = -time;
+      string timeStr = ((int)time.TotalHours).ToString() + ":" + time.Minutes.ToString("d2");
+      if(Time.Seconds != 0) timeStr += ":" + time.Seconds.ToString("d2");
+      if(Time < TimeSpan.Zero) timeStr = "-" + timeStr;
       return timeStr;
     }
 
-    static readonly Regex timeRe = new Regex(@"^\s*(\d+)(?::(\d+)(?::(\d+))?)?\s*$");
+    static readonly Regex timeRe = new Regex(@"^\s*(-)?(\d+)(?::(\d+)(?::(\d+))?)?\s*$");
   }
   #endregion
 
@@ -891,13 +906,13 @@ namespace Maneubo
 
     public override BoardPoint Position
     {
-      get { return GetEffectiveObserverPosition() + new Vector2(0, 1).Rotated(-Bearing); }
+      get { return GetEffectiveObserverPosition() + new Vector2(0, 1).Rotate(-Bearing); }
       set { Bearing = ManeuveringBoard.AngleBetween(GetEffectiveObserverPosition(), value); }
     }
 
     public Vector2 Vector
     {
-      get { return new Vector2(0, 1).Rotated(-Bearing); }
+      get { return new Vector2(0, 1).Rotate(-Bearing); }
     }
 
     public Line2 GetBearingLine()
@@ -921,7 +936,7 @@ namespace Maneubo
       {
         BoardPoint boardPoint = Board.GetBoardPoint(point);
         BoardPoint observerPosition = GetEffectiveObserverPosition();
-        Line2 bearingLine = new Line2(observerPosition, new Vector2(0, 1).Rotated(-Bearing));
+        Line2 bearingLine = new Line2(observerPosition, new Vector2(0, 1).Rotate(-Bearing));
         distance = Math.Abs(bearingLine.DistanceTo(boardPoint)) * Board.ZoomFactor;
 
         // the distance measurement considers the entire infinite line, but we only want to consider the ray starting from the observer, so
@@ -941,7 +956,7 @@ namespace Maneubo
       {
         BoardPoint observerPosition = GetEffectiveObserverPosition();
         observerPosition = new BoardPoint(observerPosition.X*Board.ZoomFactor, -observerPosition.Y*Board.ZoomFactor);
-        Vector2 screenVector = new Vector2(0, -1).Rotated(Bearing);
+        Vector2 screenVector = new Vector2(0, -1).Rotate(Bearing);
         Line2 bearingLine = new Line2(observerPosition, screenVector);
 
         // since the bearing line is infinitely long, we'll test the intersection of the line against all four sides of the clipping
@@ -1045,11 +1060,6 @@ namespace Maneubo
   #region Waypoint
   sealed class Waypoint : PositionalDataShape
   {
-    public Waypoint()
-    {
-      Time = new TimeSpan(0, 1, 0); // waypoints aren't allowed to have zero times because it leads to infinite velocities
-    }
-
     public override BoardPoint Position { get; set; }
 
     public override KeyValuePair<double,Handle> GetSelectionDistance(SysPoint point)
@@ -1064,11 +1074,20 @@ namespace Maneubo
       {
         float scale = (float)Board.ZoomFactor, x = (float)Position.X * scale, y = -(float)Position.Y * scale;
 
-        int index = Parent.Children.IndexOf(this) - 1;
-        Waypoint previousWaypoint = index >= 0 ? Parent.Children[index] as Waypoint : null;
-        Shape previousShape = previousWaypoint != null ? previousWaypoint : Parent;
-        float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
-        graphics.DrawArrow(Pen, prevX, prevY, x, y);
+        int index = Parent.Children.IndexOf(this), previousIndex = index - 1;
+        Waypoint previousWaypoint = previousIndex >= 0 ? Parent.Children[previousIndex] as Waypoint : null;
+        if(previousWaypoint != null || Time >= TimeSpan.Zero) // don't draw an arrow for the first waypoint if it's before T=0
+        {
+          // if we're crossing over the zero point, draw the arrow from the parent position (which is T = 0)
+          bool crossedZero = previousWaypoint != null && Time > TimeSpan.Zero && previousWaypoint.Time < TimeSpan.Zero;
+          Shape previousShape = previousWaypoint == null || crossedZero ? Parent : previousWaypoint;
+          float prevX = (float)previousShape.Position.X * scale, prevY = -(float)previousShape.Position.Y * scale;
+          graphics.DrawArrow(Pen, prevX, prevY, x, y);
+          if(crossedZero) // if we drew the line from the parent due to a zero crossing, draw another line from
+          {               // the previous waypoint to the parent
+            graphics.DrawArrow(Pen, (float)previousWaypoint.Position.X * scale, -(float)previousWaypoint.Position.Y * scale, prevX, prevY);
+          }
+        }
 
         graphics.DrawRectangle(Pen, x-6, y-6, 12, 12);
         graphics.DrawLine(Pen, x, y-6, x, y+6);

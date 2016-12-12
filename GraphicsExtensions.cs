@@ -18,13 +18,12 @@ namespace Maneubo
 
       // draw the end cap
       const double Angle = 60 * MathConst.DegreesToRadians;
-      Vector2 vector = new Vector2(x-x2, y-y2);
-      vector.Normalize(8); // the length of the end cap segments
+      Vector2 vector = new Vector2(x-x2, y-y2).GetNormal(8); // the length of the end cap segments
 
-      Vector2 rotated = vector.Rotated(Angle/2);
+      Vector2 rotated = vector.Rotate(Angle/2);
       graphics.DrawLine(pen, x2, y2, x2+(float)rotated.X, y2+(float)rotated.Y);
 
-      rotated = vector.Rotated(-Angle/2);
+      rotated = vector.Rotate(-Angle/2);
       graphics.DrawLine(pen, x2, y2, x2+(float)rotated.X, y2+(float)rotated.Y);
     }
 

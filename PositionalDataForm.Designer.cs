@@ -38,10 +38,10 @@
       System.Windows.Forms.Label lblDegrees3;
       System.Windows.Forms.Label lblBearing3;
       System.Windows.Forms.Button btnCancel;
-      System.Windows.Forms.GroupBox grpObservation;
       System.Windows.Forms.Label lblTime;
-      this.btnOK = new System.Windows.Forms.Button();
+      this.grpObservation = new System.Windows.Forms.GroupBox();
       this.txtTime = new System.Windows.Forms.TextBox();
+      this.btnOK = new System.Windows.Forms.Button();
       this.grpObserved = new System.Windows.Forms.GroupBox();
       this.txtObservedDistance = new Maneubo.ChangeTrackingTextBox();
       this.txtObservedBearing = new Maneubo.ChangeTrackingTextBox();
@@ -61,9 +61,8 @@
       lblDegrees3 = new System.Windows.Forms.Label();
       lblBearing3 = new System.Windows.Forms.Label();
       btnCancel = new System.Windows.Forms.Button();
-      grpObservation = new System.Windows.Forms.GroupBox();
       lblTime = new System.Windows.Forms.Label();
-      grpObservation.SuspendLayout();
+      this.grpObservation.SuspendLayout();
       this.grpObserved.SuspendLayout();
       this.grpObserver.SuspendLayout();
       this.grpPrevious.SuspendLayout();
@@ -159,17 +158,6 @@
       lblBearing3.Text = "Bearing";
       lblBearing3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
-      // btnOK
-      // 
-      this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      this.btnOK.Location = new System.Drawing.Point(52, 298);
-      this.btnOK.Name = "btnOK";
-      this.btnOK.Size = new System.Drawing.Size(75, 23);
-      this.btnOK.TabIndex = 5;
-      this.btnOK.Text = "OK";
-      this.btnOK.UseVisualStyleBackColor = true;
-      this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
-      // 
       // btnCancel
       // 
       btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
@@ -183,14 +171,14 @@
       // 
       // grpObservation
       // 
-      grpObservation.Controls.Add(this.txtTime);
-      grpObservation.Controls.Add(lblTime);
-      grpObservation.Location = new System.Drawing.Point(12, 8);
-      grpObservation.Name = "grpObservation";
-      grpObservation.Size = new System.Drawing.Size(196, 46);
-      grpObservation.TabIndex = 0;
-      grpObservation.TabStop = false;
-      grpObservation.Text = "Observation Data";
+      this.grpObservation.Controls.Add(this.txtTime);
+      this.grpObservation.Controls.Add(lblTime);
+      this.grpObservation.Location = new System.Drawing.Point(12, 8);
+      this.grpObservation.Name = "grpObservation";
+      this.grpObservation.Size = new System.Drawing.Size(196, 46);
+      this.grpObservation.TabIndex = 0;
+      this.grpObservation.TabStop = false;
+      this.grpObservation.Text = "Observation Data";
       // 
       // txtTime
       // 
@@ -208,6 +196,17 @@
       lblTime.TabIndex = 1;
       lblTime.Text = "&Time";
       lblTime.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+      // 
+      // btnOK
+      // 
+      this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+      this.btnOK.Location = new System.Drawing.Point(52, 298);
+      this.btnOK.Name = "btnOK";
+      this.btnOK.Size = new System.Drawing.Size(75, 23);
+      this.btnOK.TabIndex = 5;
+      this.btnOK.Text = "OK";
+      this.btnOK.UseVisualStyleBackColor = true;
+      this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
       // grpObserved
       // 
@@ -306,7 +305,7 @@
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
       this.ClientSize = new System.Drawing.Size(220, 327);
-      this.Controls.Add(grpObservation);
+      this.Controls.Add(this.grpObservation);
       this.Controls.Add(this.btnOK);
       this.Controls.Add(btnCancel);
       this.Controls.Add(this.grpPrevious);
@@ -320,8 +319,8 @@
       this.ShowInTaskbar = false;
       this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
       this.Text = "Observation Data";
-      grpObservation.ResumeLayout(false);
-      grpObservation.PerformLayout();
+      this.grpObservation.ResumeLayout(false);
+      this.grpObservation.PerformLayout();
       this.grpObserved.ResumeLayout(false);
       this.grpObserved.PerformLayout();
       this.grpObserver.ResumeLayout(false);
@@ -345,5 +344,6 @@
     private System.Windows.Forms.GroupBox grpPrevious;
     private System.Windows.Forms.GroupBox grpObserved;
     private System.Windows.Forms.Button btnOK;
+    private System.Windows.Forms.GroupBox grpObservation;
   }
 }

@@ -25,7 +25,7 @@ using SysRect    = System.Drawing.Rectangle;
 // TODO: parent/child relationships should be useful somehow
 // TODO: relative <-> absolute motion, and other specialized calculations
 // TODO: draw more data on lines (distance, angle, ?)
-// TODO: time advancement?
+// TODO: better time advancement (allow dragging a bar?)
 // TODO: unit time? (e.g. marking when a unit first comes into being on the map. observations, TMA, etc. are calculated from that time)
 // TODO: only allow unit shapes to have children (?). currently, we're not saving children for any other shapes, and only unit shapes can
 //       have children added from the UI
@@ -216,6 +216,7 @@ namespace Maneubo
       public virtual void ReferenceChanged(UnitShape previousReference) { }
       public virtual void ShapeChanged(Shape shape) { }
       public virtual void RenderDecorations(Graphics graphics) { }
+      public virtual void TimeChanged() { }
 
       protected ManeuveringBoard Board { get; private set; }
     }
@@ -346,7 +347,12 @@ namespace Maneubo
           }
 
           unit = GetSelectedUnit();
-          if(unit != null && (Type == PositionalDataType.Waypoint || unit != Board.ReferenceShape))
+          if(unit == null)
+          {
+            MessageBox.Show("To add an observation or waypoint, you must have a unit selected.", "Select a unit",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+          }
+          else if(Type == PositionalDataType.Waypoint || unit != Board.ReferenceShape)
           {
             PositionalDataShape posData;
             if(Type == PositionalDataType.Waypoint)
@@ -559,30 +565,8 @@ namespace Maneubo
             }
             else
             {
-              InterceptForm form = new InterceptForm(Board.ReferenceShape, target, Board.UnitSystem);
-              if(form.ShowDialog() == DialogResult.OK)
-              {
-                // delete existing waypoints
-                for(int i=Board.ReferenceShape.Children.Count-1; i >= 0; i--)
-                {
-                  Waypoint waypoint = Board.ReferenceShape.Children[i] as Waypoint;
-                  if(waypoint != null) Board.ReferenceShape.Children.RemoveAt(i);
-                }
-
-                if(form.CreateWaypoints)
-                {
-                  Waypoint waypoint = new Waypoint();
-                  waypoint.Position = form.InterceptPoint;
-                  waypoint.Time     = TimeSpan.FromSeconds(Math.Max(1, form.Time));
-                  Board.ReferenceShape.Children.Add(waypoint);
-                }
-                else
-                {
-                  Board.ReferenceShape.Direction = form.Course;
-                  Board.ReferenceShape.Speed     = form.Speed;
-                }
-                Board.Invalidate();
-              }
+              InterceptForm form = new InterceptForm(Board.ReferenceShape, target, Board.UnitSystem, true);
+              if(form.ShowDialog() == DialogResult.OK) Board.ApplyIntercept(Board.ReferenceShape, form);
             }
             return true;
           }
@@ -778,29 +762,28 @@ namespace Maneubo
 
       public override void MouseDrag(MouseDragEventArgs e)
       {
-        if(dragMode != DragMode.None)
+        if(dragMode == DragMode.Middle)
         {
+          position = dragStart + (Board.GetBoardPoint(e.Location) - dragPoint);
+          OnArrowMoved();
+        }
+        else if(dragMode != DragMode.None)
+        {
+          BoardPoint start, end;
           if(dragMode == DragMode.Start)
           {
-            position = Board.GetBoardPoint(e.Location);
-            velocity = (dragStart - position) * (maxTime == 0 ? 1.0/VectorTime : 1.0/maxTime);
+            end   = dragStart;
+            start = GetLockedDragPoint(Board.GetBoardPoint(e.Location), true);
           }
-          else if(dragMode == DragMode.Middle)
+          else
           {
-            position = dragStart + (Board.GetBoardPoint(e.Location) - dragPoint);
-          }
-          else if(dragMode == DragMode.End)
-          {
-            velocity = (Board.GetBoardPoint(e.Location) - position) * (maxTime == 0 ? 1.0/VectorTime : 1.0/maxTime);
+            start = dragStart;
+            end   = GetLockedDragPoint(Board.GetBoardPoint(e.Location), false);
           }
 
-          if(form.LockCourse || form.LockSpeed)
-          {
-            if(form.LockCourse && velocity != Vector2.Zero) velocity = new Vector2(0, velocity.Length).Rotated(-form.Course);
-            if(form.LockSpeed) velocity = new Vector2(form.Speed, 0).Rotated(velocity == Vector2.Zero ? 0 : velocity.Angle);
-            if(dragMode == DragMode.Start) position = dragStart - velocity * (maxTime == 0 ? VectorTime : maxTime);
-          }
-
+          Vector2 vector = end - start;
+          velocity = vector * (1/timeSpan);
+          position = start - velocity * minTime;
           OnArrowMoved();
         }
       }
@@ -815,13 +798,15 @@ namespace Maneubo
         if(e.Button == MouseButtons.Left && form != null) // left drag on the line moves it
         {
           dragPoint = Board.GetBoardPoint(e.Location);
-          BoardPoint end = position + velocity * (maxTime == 0 ? VectorTime : maxTime);
-          double distanceFromStart = dragPoint.DistanceTo(position) * Board.ZoomFactor;
-          double distanceFromEnd = dragPoint.DistanceTo(end + velocity.Normalized(3)) * Board.ZoomFactor;
+          BoardPoint start = position + velocity*minTime;
+          BoardPoint end   = start    + velocity*timeSpan;
+          double distanceFromStart = dragPoint.DistanceTo(start) * Board.ZoomFactor;
+          double distanceFromEnd = dragPoint.DistanceTo(end + velocity.GetNormal(3)) * Board.ZoomFactor;
           if(distanceFromStart <= 6 || distanceFromEnd <= 9)
           {
-            dragMode  = distanceFromStart < distanceFromEnd ? DragMode.Start : DragMode.End;
-            dragStart = dragMode == DragMode.Start ? end : position;
+            dragMode  = form.LockCourse && form.LockSpeed   ? DragMode.Middle : // if course and speed are locked, any drag moves the line
+                        distanceFromStart < distanceFromEnd ? DragMode.Start  : DragMode.End;
+            dragStart = dragMode == DragMode.Start ? end : start;
             return true;
           }
 
@@ -851,8 +836,8 @@ namespace Maneubo
         UnitShape unit = GetSelectedUnit();
         if(unit != null)
         {
-          PointF start = Board.GetRenderPoint(position);
-          Vector2 crossTick = velocity.CrossVector.Normalized(6);
+          PointF start = Board.GetRenderPoint(position + velocity*minTime);
+          Vector2 crossTick = velocity.CrossVector.GetNormal(6);
 
           List<float> errors = new List<float>(12);
           int selectedObservation = -1;
@@ -884,10 +869,10 @@ namespace Maneubo
             }
           }
 
-          PointF end = Board.GetRenderPoint(position + velocity * (maxTime == 0 ? VectorTime : maxTime));
+          PointF end = Board.GetRenderPoint(position + (minTime+timeSpan)*velocity);
           graphics.DrawLine(Board.tmaPen, start, end);
 
-          Vector2 capVector = (velocity == Vector2.Zero ? new Vector2(1, 0) : velocity).Normalized(6);
+          Vector2 capVector = (velocity == Vector2.Zero ? new Vector2(1, 0) : velocity).GetNormal(6);
           PointF capEnd = new PointF(end.X + (float)capVector.X, end.Y - (float)capVector.Y);
           graphics.DrawArrow(Board.tmaPen, end, capEnd);
 
@@ -955,6 +940,11 @@ namespace Maneubo
       public override void ShapeChanged(Shape shape)
       {
         if(shape is Observation && GetSelectedUnit() != null) CalculateTimeSpan();
+      }
+
+      public override void TimeChanged()
+      {
+        if(form.Visible) Initialize(); // reinitialize the form if it's currently visible
       }
 
       enum DragMode
@@ -1449,12 +1439,30 @@ namespace Maneubo
 
       void CalculateTimeSpan()
       {
-        maxTime = 0;
+        minTime = maxTime = 0;
         foreach(BearingObservation bearing in GetSelectedUnit().Children.OfType<BearingObservation>())
         {
           double time = bearing.Time.TotalSeconds;
+          if(time < minTime) minTime = time;
           if(time > maxTime) maxTime = time;
         }
+
+        timeSpan = maxTime - minTime;
+        if(timeSpan == 0) timeSpan = VectorTime; // avoid division by zero by using the default vector length
+      }
+
+      BoardPoint GetLockedDragPoint(BoardPoint to, bool reverse)
+      {
+        if(form.LockCourse || form.LockSpeed)
+        {
+          Vector2 vector = to - dragStart;
+          if(reverse) vector = -vector;
+          if(form.LockCourse && vector != Vector2.Zero) vector = new Vector2(0, vector.Length).Rotate(-form.Course);
+          if(form.LockSpeed) vector = new Vector2(form.Speed * timeSpan, 0).Rotate(vector == Vector2.Zero ? 0 : vector.Angle);
+          if(reverse) vector = -vector;
+          to = dragStart + vector;
+        }
+        return to;
       }
 
       UnitShape GetSelectedUnit()
@@ -1570,7 +1578,7 @@ namespace Maneubo
 
         // set the initial course (normalized velocity). use the center of the course range if there is one, taking care to handle
         // ranges that span zero (e.g. 350 to 10). otherwise, use the exact course if it's given. otherwise, use the current course
-        Vector2 normalVelocity = new Vector2(1, 0).Rotated(
+        Vector2 normalVelocity = new Vector2(1, 0).Rotate(
           courseRange ? SwapBearing((minCourse.Value + maxCourse.Value - (minCourse.Value <= maxCourse.Value ? 0 : Math.PI*2)) * 0.5) :
           course.HasValue ? SwapBearing(course.Value) : (velocity == Vector2.Zero ? 0 : velocity.Angle));
         point[2] = normalVelocity.X;
@@ -1611,7 +1619,7 @@ namespace Maneubo
       {
         if(velocity != Vector2.Zero)
         {
-          velocity = new Vector2(0, velocity.Length).Rotated(-form.Course);
+          velocity = new Vector2(0, velocity.Length).Rotate(-form.Course);
           Board.Invalidate();
         }
       }
@@ -1655,7 +1663,7 @@ namespace Maneubo
             catch(ArgumentException) { } // the problem became ill-behaved, but a good solution has probably been found anyway, so use it
             position.X = point[0];
             position.Y = point[1];
-            velocity = point[2] <= 0 ? Vector2.Zero : velocity.Normalized(point[2]);
+            velocity = point[2] <= 0 ? Vector2.Zero : velocity.GetNormal(point[2]);
           }
           else
           {
@@ -1681,14 +1689,14 @@ namespace Maneubo
 
       void form_SpeedChanged(object sender, EventArgs e)
       {
-        velocity = new Vector2(form.Speed, 0).Rotated(velocity == Vector2.Zero ? 0 : velocity.Angle);
+        velocity = new Vector2(form.Speed, 0).Rotate(velocity == Vector2.Zero ? 0 : velocity.Angle);
         Board.Invalidate();
       }
 
       TMAForm form;
       BoardPoint position, dragStart, dragPoint;
       Vector2 velocity;
-      double maxTime;
+      double minTime, maxTime, timeSpan;
       DragMode dragMode;
     }
     #endregion
@@ -2005,28 +2013,50 @@ namespace Maneubo
       }
     }
 
-    public void AdvanceTime(TimeSpan time, bool advanceUnitsWithWaypoints)
+    public void AdvanceTime(TimeSpan time)
     {
-      double seconds = time.TotalSeconds;
       foreach(UnitShape unit in RootShapes.OfType<UnitShape>())
       {
-        List<Waypoint> waypoints = unit.Children.OfType<Waypoint>().ToList();
-        if(waypoints.Count == 0)
-        {
-          unit.Position += unit.Velocity * seconds;
-        }
-        else if(advanceUnitsWithWaypoints)
-        {
-          Vector2 velocity = unit.GetEffectiveVelocity(time);
-          unit.Position = unit.GetPositionAt(time);
-          unit.Velocity = velocity;
-          foreach(Waypoint waypoint in waypoints)
+        if(time > TimeSpan.Zero) // if the unit's implied waypoint (from its position) would be lost (because it'd go around a corner),
+        {                        // add a new waypoint at its current position
+          Waypoint firstWaypoint = unit.Children.OfType<Waypoint>().FirstOrDefault();
+          if(firstWaypoint != null && firstWaypoint.Time > TimeSpan.Zero && time >= firstWaypoint.Time)
           {
-            if(waypoint.Time <= time) unit.Children.Remove(waypoint);
-            else waypoint.Time -= time;
+            unit.Children.Insert(unit.Children.IndexOf(firstWaypoint), new Waypoint() { Position = unit.Position });
           }
         }
+
+        unit.Position = unit.GetPositionAt(time);
+        unit.Velocity = unit.GetEffectiveVelocity(time);
+        foreach(var posData in unit.Children.OfType<PositionalDataShape>()) posData.Time -= time; // update waypoints and observations
       }
+
+      SelectedTool.TimeChanged();
+      Invalidate();
+    }
+
+    public void ApplyIntercept(UnitShape unit, InterceptForm form) // TODO: it's ugly to take an InterceptForm, but i'm out of time...
+    {
+      // delete existing waypoints
+      for(int i=unit.Children.Count-1; i >= 0; i--)
+      {
+        Waypoint waypoint = unit.Children[i] as Waypoint;
+        if(waypoint != null) unit.Children.RemoveAt(i);
+      }
+
+      if(form.CreateWaypoints)
+      {
+        Waypoint waypoint = new Waypoint();
+        waypoint.Position = form.InterceptPoint;
+        waypoint.Time     = TimeSpan.FromSeconds(Math.Max(1, form.Time));
+        unit.Children.Add(waypoint);
+      }
+      else
+      {
+        unit.Direction = form.Course;
+        unit.Speed     = form.Speed;
+      }
+
       Invalidate();
     }
 
@@ -2187,8 +2217,14 @@ namespace Maneubo
                 case "shapes":
                   if(!reader.IsEmptyElement)
                   {
+                    string referenceUnit = reader.GetStringAttribute("referenceUnit");
+                    string selectedUnit = reader.GetStringAttribute("selectedUnit");
                     reader.Read(); // move to the first shape, or the end element
                     while(reader.NodeType == XmlNodeType.Element) RootShapes.Add(Shape.Load(reader, observers, unitsById));
+
+                    UnitShape shape;
+                    if(!string.IsNullOrEmpty(referenceUnit) && unitsById.TryGetValue(referenceUnit, out shape)) ReferenceShape = shape;
+                    if(!string.IsNullOrEmpty(selectedUnit) && unitsById.TryGetValue(selectedUnit, out shape)) SelectedShape = shape;
                   }
                   break;
                 case "view":
@@ -2268,6 +2304,7 @@ namespace Maneubo
           writer.WriteStartElement("projection");
           string type = null;
           if(Projection is AzimuthalEquidistantProjection) type = "azimuthalEquidistant";
+          else throw new NotImplementedException();
           writer.WriteAttributeString("type", type);
           writer.WriteAttributeString("mapPoint", FormatXmlVector(ProjectionCenter));
           writer.WriteAttributeString("lonLat", FormatXmlVector(new BoardPoint(Projection.CenterLongitude, Projection.CenterLatitude)));
@@ -2276,6 +2313,9 @@ namespace Maneubo
         if(RootShapes.Count != 0)
         {
           writer.WriteStartElement("shapes");
+          UnitShape selectedUnit = SelectedShape as UnitShape;
+          if(ReferenceShape != null) writer.WriteAttributeString("referenceUnit", ReferenceShape.GetXmlId());
+          if(selectedUnit != null) writer.WriteAttributeString("selectedUnit", selectedUnit.GetXmlId());
           foreach(Shape shape in RootShapes) shape.Save(writer);
           writer.WriteEndElement();
         }
@@ -2442,7 +2482,9 @@ namespace Maneubo
 
     public static string GetTimeString(TimeSpan time)
     {
-      return string.Format("{0}:{1:d2}:{2:d2}", (int)time.TotalHours, time.Minutes, time.Seconds);
+      string prefix = time >= TimeSpan.Zero ? null : "-";
+      if(prefix != null) time = -time;
+      return prefix + string.Format("{0}:{1:d2}:{2:d2}", (int)time.TotalHours, time.Minutes, time.Seconds);
     }
 
     protected override void Dispose(bool disposing)
@@ -2922,7 +2964,7 @@ namespace Maneubo
             LineShape line = shape as LineShape;
             if(line != null)
             {
-              line.End = line.Start + new Vector2(0, form.ShapeSize).Rotated(-form.Direction);
+              line.End = line.Start + new Vector2(0, form.ShapeSize).Rotate(-form.Direction);
             }
             else
             {

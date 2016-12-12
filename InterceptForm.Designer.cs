@@ -30,7 +30,6 @@
     {
       System.Windows.Forms.Label lblSpeed;
       System.Windows.Forms.Label lblRadius;
-      System.Windows.Forms.Button btnOK;
       System.Windows.Forms.Button btnCancel;
       System.Windows.Forms.Label lblTime;
       System.Windows.Forms.Label lblAoB;
@@ -38,6 +37,7 @@
       System.Windows.Forms.Label lblRange;
       System.Windows.Forms.Label lblTargetSpeed;
       System.Windows.Forms.Label lblCourse;
+      this.btnOK = new System.Windows.Forms.Button();
       this.txtSpeed = new System.Windows.Forms.TextBox();
       this.txtRadius = new System.Windows.Forms.TextBox();
       this.txtTime = new System.Windows.Forms.TextBox();
@@ -51,7 +51,6 @@
       this.txtCourse = new System.Windows.Forms.TextBox();
       lblSpeed = new System.Windows.Forms.Label();
       lblRadius = new System.Windows.Forms.Label();
-      btnOK = new System.Windows.Forms.Button();
       btnCancel = new System.Windows.Forms.Button();
       lblTime = new System.Windows.Forms.Label();
       lblAoB = new System.Windows.Forms.Label();
@@ -83,14 +82,14 @@
       // 
       // btnOK
       // 
-      btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      btnOK.Location = new System.Drawing.Point(9, 135);
-      btnOK.Name = "btnOK";
-      btnOK.Size = new System.Drawing.Size(75, 23);
-      btnOK.TabIndex = 19;
-      btnOK.Text = "&OK";
-      btnOK.UseVisualStyleBackColor = true;
-      btnOK.Click += new System.EventHandler(this.btnOK_Click);
+      this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.btnOK.Location = new System.Drawing.Point(9, 135);
+      this.btnOK.Name = "btnOK";
+      this.btnOK.Size = new System.Drawing.Size(75, 23);
+      this.btnOK.TabIndex = 19;
+      this.btnOK.Text = "&OK";
+      this.btnOK.UseVisualStyleBackColor = true;
+      this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
       // 
       // btnCancel
       // 
@@ -146,20 +145,20 @@
       // lblTargetSpeed
       // 
       lblTargetSpeed.AutoSize = true;
-      lblTargetSpeed.Location = new System.Drawing.Point(8, 89);
+      lblTargetSpeed.Location = new System.Drawing.Point(8, 63);
       lblTargetSpeed.Name = "lblTargetSpeed";
       lblTargetSpeed.Size = new System.Drawing.Size(70, 13);
-      lblTargetSpeed.TabIndex = 6;
+      lblTargetSpeed.TabIndex = 4;
       lblTargetSpeed.Text = "Target s&peed";
       lblTargetSpeed.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
       // lblCourse
       // 
       lblCourse.AutoSize = true;
-      lblCourse.Location = new System.Drawing.Point(8, 63);
+      lblCourse.Location = new System.Drawing.Point(8, 89);
       lblCourse.Name = "lblCourse";
       lblCourse.Size = new System.Drawing.Size(73, 13);
-      lblCourse.TabIndex = 4;
+      lblCourse.TabIndex = 6;
       lblCourse.Text = "Target &course";
       lblCourse.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
@@ -253,25 +252,25 @@
       // 
       // txtTargetSpeed
       // 
-      this.txtTargetSpeed.Location = new System.Drawing.Point(97, 85);
+      this.txtTargetSpeed.Location = new System.Drawing.Point(97, 59);
       this.txtTargetSpeed.Name = "txtTargetSpeed";
       this.txtTargetSpeed.Size = new System.Drawing.Size(69, 20);
-      this.txtTargetSpeed.TabIndex = 7;
+      this.txtTargetSpeed.TabIndex = 5;
       this.txtTargetSpeed.TextChanged += new System.EventHandler(this.txt_TextChanged);
       this.txtTargetSpeed.Leave += new System.EventHandler(this.txt_Leave);
       // 
       // txtCourse
       // 
-      this.txtCourse.Location = new System.Drawing.Point(97, 59);
+      this.txtCourse.Location = new System.Drawing.Point(97, 85);
       this.txtCourse.Name = "txtCourse";
       this.txtCourse.Size = new System.Drawing.Size(69, 20);
-      this.txtCourse.TabIndex = 5;
+      this.txtCourse.TabIndex = 7;
       this.txtCourse.TextChanged += new System.EventHandler(this.txt_TextChanged);
       this.txtCourse.Leave += new System.EventHandler(this.txt_Leave);
       // 
       // InterceptForm
       // 
-      this.AcceptButton = btnOK;
+      this.AcceptButton = this.btnOK;
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.CancelButton = btnCancel;
@@ -292,7 +291,7 @@
       this.Controls.Add(this.txtTime);
       this.Controls.Add(lblTime);
       this.Controls.Add(btnCancel);
-      this.Controls.Add(btnOK);
+      this.Controls.Add(this.btnOK);
       this.Controls.Add(this.txtRadius);
       this.Controls.Add(lblRadius);
       this.Controls.Add(this.txtSpeed);
@@ -322,5 +321,6 @@
     private System.Windows.Forms.TextBox txtRange;
     private System.Windows.Forms.TextBox txtTargetSpeed;
     private System.Windows.Forms.TextBox txtCourse;
+    private System.Windows.Forms.Button btnOK;
   }
 }
